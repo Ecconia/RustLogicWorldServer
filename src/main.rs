@@ -51,19 +51,24 @@ fn handle_packet(socket: &UdpSocket, remote_address: &SocketAddr, buffer_amount:
 	
 	if message_type_id == 136
 	{
-		println!("=> DISCOVERY!");
+		println!("=> Discovery!");
 		//Discovery packet!
-		
 		handle_discovery(&socket, &remote_address, &mut buffer_iterator);
 	} else if message_type_id == 131 {
 		//Connect!
-		println!("=> CONNECT!");
-		
-		let splice = &buf[5..buffer_amount];
-		println!("MessageBytes: {:?}", splice);
-		println!("MessageBytes: {:x?}", splice);
-		
+		println!("=> Connect!");
 		handle_connect(&socket, &remote_address, &mut buffer_iterator);
+	} else if message_type_id == 133 {
+		println!("=> Connection established!");
+		//TODO: Read LG-Float (time)
+		println!("-Cannot handle yet-");
+	} else if message_type_id == 129 {
+		println!("=> Ping!");
+		println!("-Cannot handle yet-");
+	} else if message_type_id == 67 {
+		println!("=> UserReliableOrdered1!");
+		//Handle actual data...
+		println!("-Cannot handle yet-");
 	} else {
 		println!("Unknown message type!");
 		return;
@@ -162,7 +167,7 @@ fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iter
 	println!("{} bytes sent", len);
 }
 
-fn handle_connect(_socket: &UdpSocket, _remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
+fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
 {
 	let app_id = lg_formatter::read_string(buffer_iterator);
 	println!("App ID: '\x1b[38;2;255;0;150m{}\x1b[m'", app_id);
@@ -170,4 +175,66 @@ fn handle_connect(_socket: &UdpSocket, _remote_address: &SocketAddr, buffer_iter
 	println!("Remote ID: \x1b[38;2;255;0;150m{}\x1b[m", remote_id);
 	let remote_time = lg_formatter::read_float(buffer_iterator);
 	println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
+	
+	let packet_id = mp_reader::read_int_auto(buffer_iterator); //15
+	println!("Packet ID is btw: {}", packet_id);
+	
+	let entry_count = mp_reader::read_array_auto(buffer_iterator);
+	if entry_count != 6
+	{
+		println!("Client connect packet has different entry count than 6, got: {}", entry_count);
+		return;
+	}
+	
+	let mod_count = mp_reader::read_array_auto(buffer_iterator);
+	println!("Mod count: {}", mod_count);
+	for _ in 0..mod_count
+	{
+		let mod_id = mp_reader::read_string_auto(buffer_iterator);
+		if mod_id.is_none()
+		{
+			println!("Received null mod name, illegal!");
+			return;
+		}
+		println!(" - {}", mod_id.unwrap());
+	}
+	
+	let user_option_count = mp_reader::read_array_auto(buffer_iterator);
+	if user_option_count != 1
+	{
+		println!("More than one user argument, got: {}", user_option_count);
+		return;
+	}
+	let username = mp_reader::read_string_auto(buffer_iterator);
+	if username.is_none()
+	{
+		println!("Received null username, illegal!");
+		return;
+	}
+	println!("Username: {}", username.unwrap());
+	println!("Version: {}", mp_reader::read_string_auto(buffer_iterator).unwrap());
+	println!("PWHash: {:x?}", mp_reader::read_binary_auto(buffer_iterator).unwrap());
+	println!("HailPayload: {:?}", mp_reader::read_string_auto(buffer_iterator));
+	println!("HailSignature: {:?}", mp_reader::read_string_auto(buffer_iterator));
+	
+	//Send answer:
+	
+	let mut result_buffer = Vec::new();
+	
+	result_buffer.push(132);
+	result_buffer.push(0);
+	result_buffer.push(0);
+	result_buffer.push(0);
+	result_buffer.push(0);
+	
+	lg_formatter::write_string(&mut result_buffer, "Logic World");
+	lg_formatter::write_int_64(&mut result_buffer, remote_id);
+	lg_formatter::write_float(&mut result_buffer, 0.5);
+	
+	let size = (result_buffer.len() - 5) * 8;
+	result_buffer[3] = size as u8;
+	result_buffer[4] = (size >> 8) as u8;
+	
+	let len = socket.send_to(&result_buffer, remote_address).unwrap();
+	println!("{} bytes sent", len);
 }

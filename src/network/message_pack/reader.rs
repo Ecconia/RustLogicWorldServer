@@ -73,6 +73,35 @@ pub fn read_map_auto(iterator: &mut Peekable<Iter<u8>>) -> u32
 	}
 }
 
+//Array:
+
+pub fn read_array_flex(iterator: &mut Peekable<Iter<u8>>) -> u32
+{
+	return (*iterator.next().unwrap() as u32) - 0x90;
+}
+
+pub fn read_array_auto(iterator: &mut Peekable<Iter<u8>>) -> u32
+{
+	let type_fml = **iterator.peek().unwrap();
+	match type_fml
+	{
+		0x90..=0xA1 => {
+			read_array_flex(iterator) as u32
+		}
+		0xDC => {
+			iterator.next();
+			read_int_16(iterator) as u32
+		}
+		0xDD => {
+			iterator.next();
+			read_int_32(iterator) as u32
+		}
+		_ => {
+			panic!("Expected array, but got type code {:?}", type_fml);
+		}
+	}
+}
+
 //String:
 
 fn read_string_len(iterator: &mut Peekable<Iter<u8>>, length: usize) -> String
@@ -124,7 +153,7 @@ pub fn read_string_auto(iterator: &mut Peekable<Iter<u8>>) -> Option<String>
 			Some(read_string_16(iterator))
 		}
 		_ => {
-			panic!("Expected map, but got type code {:?}", type_fml);
+			panic!("Expected string, but got type code {:?}", type_fml);
 		}
 	}
 }
@@ -138,5 +167,58 @@ pub fn read_bool_auto(iterator: &mut Peekable<Iter<u8>>) -> bool
 		0xC2 => false,
 		0xC3 => true,
 		_ => panic!("Expected boolean, but got type code {:?}", type_fml)
+	}
+}
+
+//Binary:
+
+pub fn read_binary_len(iterator: &mut Peekable<Iter<u8>>, length: usize) -> Vec<u8>
+{
+	let mut buffer = Vec::with_capacity(length);
+	for _ in 0..length
+	{
+		buffer.push(*iterator.next().unwrap());
+	}
+	return buffer;
+}
+
+pub fn read_binary_8(iterator: &mut Peekable<Iter<u8>>) -> Vec<u8>
+{
+	let length = read_int_8(iterator) as usize;
+	return read_binary_len(iterator, length);
+}
+
+pub fn read_binary_16(iterator: &mut Peekable<Iter<u8>>) -> Vec<u8>
+{
+	let length = read_int_16(iterator) as usize;
+	return read_binary_len(iterator, length);
+}
+
+pub fn read_binary_32(iterator: &mut Peekable<Iter<u8>>) -> Vec<u8>
+{
+	let length = read_int_32(iterator) as usize;
+	return read_binary_len(iterator, length);
+}
+
+pub fn read_binary_auto(iterator: &mut Peekable<Iter<u8>>) -> Option<Vec<u8>>
+{
+	let type_fml = *iterator.next().unwrap();
+	match type_fml
+	{
+		0xC0 => {
+			None
+		}
+		0xC4 => {
+			Some(read_binary_8(iterator))
+		}
+		0xC5 => {
+			Some(read_binary_16(iterator))
+		}
+		0xC6 => {
+			Some(read_binary_32(iterator))
+		}
+		_ => {
+			panic!("Expected byte array, but got type code {:?}", type_fml);
+		}
 	}
 }
