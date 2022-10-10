@@ -1,0 +1,10 @@
+# Rust/Cargo:
+/target/
+#For now include this file, it can be added later.
+/Cargo.lock
+
+# Idea:
+/.idea/
+# Sublime Text:
+/*.sublime-project
+/*.sublime-workspace
