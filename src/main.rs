@@ -1,13 +1,11 @@
 use std::net::UdpSocket;
 
-use crate::message_pack_reader::MessagePackReader;
-use crate::message_pack_writer::MessagePackWriter;
-use crate::lidgren_formatter::LidgrenFormatter;
+pub mod network;
+pub mod lidgren;
 
-mod buffer_reader;
-mod message_pack_reader;
-mod message_pack_writer;
-mod lidgren_formatter;
+use network::message_pack::reader as mp_reader;
+use network::message_pack::writer as mp_writer;
+use lidgren::util::formatter as lg_formatter;
 
 fn main() -> std::io::Result<()> {
 	{
@@ -50,7 +48,7 @@ fn main() -> std::io::Result<()> {
 				//Discovery packet!
 				
 				{
-					let packet_id = MessagePackReader::read_int_auto(&mut buffer_iterator);
+					let packet_id = mp_reader::read_int_auto(&mut buffer_iterator);
 					if packet_id != 12
 					{
 						println!("Discovery packet not from a 0.91 client, but {}, bye!", packet_id);
@@ -59,7 +57,7 @@ fn main() -> std::io::Result<()> {
 				}
 				
 				{
-					let map_size = MessagePackReader::read_map_auto(&mut buffer_iterator);
+					let map_size = mp_reader::read_map_auto(&mut buffer_iterator);
 					if map_size != 2
 					{
 						println!("While parsing discovery packet, expected map of size 2, but got {}", map_size);
@@ -68,7 +66,7 @@ fn main() -> std::io::Result<()> {
 				}
 				
 				{
-					let key = MessagePackReader::read_string_auto(&mut buffer_iterator);
+					let key = mp_reader::read_string_auto(&mut buffer_iterator);
 					if key.is_none()
 					{
 						println!("While parsing discovery packet, expected first map key to be present, but got null.");
@@ -82,11 +80,11 @@ fn main() -> std::io::Result<()> {
 					}
 				}
 				
-				let bool = MessagePackReader::read_bool_auto(&mut buffer_iterator);
+				let bool = mp_reader::read_bool_auto(&mut buffer_iterator);
 				println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", bool);
 				
 				{
-					let key = MessagePackReader::read_string_auto(&mut buffer_iterator);
+					let key = mp_reader::read_string_auto(&mut buffer_iterator);
 					if key.is_none()
 					{
 						println!("While parsing discovery packet, expected first map key to be present, but got null.");
@@ -102,7 +100,7 @@ fn main() -> std::io::Result<()> {
 				
 				let uuid;
 				{
-					let uuid_optional = MessagePackReader::read_string_auto(&mut buffer_iterator);
+					let uuid_optional = mp_reader::read_string_auto(&mut buffer_iterator);
 					if uuid_optional.is_none()
 					{
 						println!("While parsing discovery packet, expected second value to be a string, but got null.");
@@ -121,26 +119,26 @@ fn main() -> std::io::Result<()> {
 				result_buffer.push(0);
 				result_buffer.push(0);
 				result_buffer.push(0);
-				MessagePackWriter::write_int_auto(&mut result_buffer, 13);
-				MessagePackWriter::write_map_auto(&mut result_buffer, 9);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("ServerVersion")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("0.91.0.485")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("RequestGuid")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(uuid));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("HasDiscoveryInfo")));
-				MessagePackWriter::write_bool(&mut result_buffer, true);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("Challenge")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, None);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("MOTD")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("Rust server does NOT welcome you :)")));
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("PlayersConnectedCount")));
-				MessagePackWriter::write_int_auto(&mut result_buffer, 0);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("MaxPlayerCapacity")));
-				MessagePackWriter::write_int_auto(&mut result_buffer, 666);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("ConnectionRequiresPassword")));
-				MessagePackWriter::write_bool(&mut result_buffer, false);
-				MessagePackWriter::write_string_auto(&mut result_buffer, Some(String::from("ServerRunningInVerifiedMode")));
-				MessagePackWriter::write_bool(&mut result_buffer, false);
+				mp_writer::write_int_auto(&mut result_buffer, 13);
+				mp_writer::write_map_auto(&mut result_buffer, 9);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ServerVersion")));
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("0.91.0.485")));
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("RequestGuid")));
+				mp_writer::write_string_auto(&mut result_buffer, Some(uuid));
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("HasDiscoveryInfo")));
+				mp_writer::write_bool(&mut result_buffer, true);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("Challenge")));
+				mp_writer::write_string_auto(&mut result_buffer, None);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("MOTD")));
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("Rust server does NOT welcome you :)")));
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("PlayersConnectedCount")));
+				mp_writer::write_int_auto(&mut result_buffer, 0);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("MaxPlayerCapacity")));
+				mp_writer::write_int_auto(&mut result_buffer, 666);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ConnectionRequiresPassword")));
+				mp_writer::write_bool(&mut result_buffer, false);
+				mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ServerRunningInVerifiedMode")));
+				mp_writer::write_bool(&mut result_buffer, false);
 				
 				let size = (result_buffer.len() - 5) * 8;
 				result_buffer[3] = size as u8;
@@ -156,11 +154,11 @@ fn main() -> std::io::Result<()> {
 				println!("MessageBytes: {:?}", splice);
 				println!("MessageBytes: {:x?}", splice);
 				{
-					let app_id = LidgrenFormatter::read_string(&mut buffer_iterator);
+					let app_id = lg_formatter::read_string(&mut buffer_iterator);
 					println!("App ID: '\x1b[38;2;255;0;150m{}\x1b[m'", app_id);
-					let remote_id = LidgrenFormatter::read_int_64(&mut buffer_iterator);
+					let remote_id = lg_formatter::read_int_64(&mut buffer_iterator);
 					println!("Remote ID: \x1b[38;2;255;0;150m{}\x1b[m", remote_id);
-					let remote_time = LidgrenFormatter::read_float(&mut buffer_iterator);
+					let remote_time = lg_formatter::read_float(&mut buffer_iterator);
 					println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
 				}
 			} else {
