@@ -87,7 +87,7 @@ pub fn write_string_auto(buffer: &mut Vec<u8>, value: Option<String>)
 		write_null(buffer);
 		return;
 	}
-
+	
 	let text = value.unwrap();
 	let bytes = text.as_bytes();
 	let length = bytes.len();
