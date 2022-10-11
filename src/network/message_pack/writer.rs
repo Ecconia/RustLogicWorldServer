@@ -41,7 +41,7 @@ pub fn write_int_auto(buffer: &mut Vec<u8>, value: u32)
 
 //Strings:
 
-pub fn write_string_flex(buffer: &mut Vec<u8>, value: String)
+pub fn write_string_flex(buffer: &mut Vec<u8>, value: &str)
 {
 	let bytes = value.as_bytes();
 	let length = bytes.len();
@@ -53,7 +53,7 @@ pub fn write_string_flex(buffer: &mut Vec<u8>, value: String)
 	buffer.extend(bytes.iter());
 }
 
-pub fn write_string_8(buffer: &mut Vec<u8>, value: String)
+pub fn write_string_8(buffer: &mut Vec<u8>, value: &str)
 {
 	let bytes = value.as_bytes();
 	let length = bytes.len();
@@ -66,7 +66,7 @@ pub fn write_string_8(buffer: &mut Vec<u8>, value: String)
 	buffer.extend(bytes.iter());
 }
 
-pub fn write_string_16(buffer: &mut Vec<u8>, value: String)
+pub fn write_string_16(buffer: &mut Vec<u8>, value: &str)
 {
 	let bytes = value.as_bytes();
 	let length = bytes.len();
@@ -80,7 +80,7 @@ pub fn write_string_16(buffer: &mut Vec<u8>, value: String)
 	buffer.extend(bytes.iter());
 }
 
-pub fn write_string_auto(buffer: &mut Vec<u8>, value: Option<String>)
+pub fn write_string_auto(buffer: &mut Vec<u8>, value: Option<&str>)
 {
 	if value.is_none()
 	{

@@ -1,16 +1,17 @@
-pub mod network;
-pub mod lidgren;
-pub mod error_handling;
-
 use std::net::{SocketAddr, UdpSocket};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-use network::message_pack::reader as mp_reader;
-use network::message_pack::writer as mp_writer;
+use rust_potato_server::lidgren;
+use rust_potato_server::network;
+use rust_potato_server::custom_unwrap_result_or_else;
+
+use network::packets::c2s::discovery::Discovery;
+use network::packets::s2c::discovery_response::DiscoveryResponse;
+use network::packets::c2s::connect::Connect;
 use lidgren::util::formatter as lg_formatter;
 use lidgren::data_structures::MessageHeader;
-use lidgren::message_type::MessageType::*;
+use lidgren::message_type::MessageType;
 
 fn main() {
 	let socket = UdpSocket::bind("127.0.0.1:43531").expect("Could not bind server socket.");
@@ -54,24 +55,24 @@ fn handle_packet(socket: &UdpSocket, remote_address: &SocketAddr, buffer_amount:
 	}
 	
 	match header.message_type {
-		Discovery => {
+		MessageType::Discovery => {
 			println!("=> Discovery!");
 			handle_discovery(&socket, &remote_address, &mut buffer_iterator);
 		}
-		Connect => {
+		MessageType::Connect => {
 			println!("=> Connect!");
 			handle_connect(&socket, &remote_address, &mut buffer_iterator);
 		}
-		ConnectionEstablished => {
+		MessageType::ConnectionEstablished => {
 			println!("=> Connection established!");
 			//TODO: Read LG-Float (time)
 			println!("-Cannot handle yet-");
 		}
-		Ping => {
+		MessageType::Ping => {
 			println!("=> Ping!");
 			println!("-Cannot handle yet-");
 		}
-		UserReliableOrdered(channel) => {
+		MessageType::UserReliableOrdered(channel) => {
 			println!("=> UserReliableOrdered on channel {}!", channel);
 			println!("-Cannot handle yet-");
 		}
@@ -83,48 +84,10 @@ fn handle_packet(socket: &UdpSocket, remote_address: &SocketAddr, buffer_amount:
 
 fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
 {
-	let packet_id = mp_reader::read_int_auto(buffer_iterator);
-	if packet_id != 12
-	{
-		println!("Discovery packet not from a 0.91 client, but {}, bye!", packet_id);
+	let request = custom_unwrap_result_or_else!(Discovery::parse(buffer_iterator), (|message| {
+		println!("Error while parsing the clients Discovery packet: {}", message);
 		return;
-	}
-	
-	let map_size = mp_reader::read_map_auto(buffer_iterator);
-	if map_size != 2
-	{
-		println!("While parsing discovery packet, expected map of size 2, but got {}", map_size);
-		return;
-	}
-	
-	let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
-		println!("While parsing discovery packet, expected first map key to be present, but got null.");
-		return;
-	});
-	if String::from("ForConnection").ne(&key)
-	{
-		println!("While parsing discovery packet, expected first map key to be 'ForConnection', but got '{}'.", key);
-		return;
-	}
-	
-	let bool = mp_reader::read_bool_auto(buffer_iterator);
-	println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", bool);
-	
-	let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
-		println!("While parsing discovery packet, expected first map key to be present, but got null.");
-		return;
-	});
-	if String::from("RequestGUID").ne(&key)
-	{
-		println!("While parsing discovery packet, expected first map key to be 'RequestGUID', but got '{}'.", key);
-		return;
-	}
-	
-	let uuid = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
-		println!("While parsing discovery packet, expected second value to be a string, but got null.");
-		return;
-	});
-	println!("Request UUID is: \x1b[38;2;255;0;150m{}\x1b[m", uuid);
+	}));
 	
 	//Answer:
 	
@@ -135,26 +98,9 @@ fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iter
 	result_buffer.push(0);
 	result_buffer.push(0);
 	result_buffer.push(0);
-	mp_writer::write_int_auto(&mut result_buffer, 13);
-	mp_writer::write_map_auto(&mut result_buffer, 9);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ServerVersion")));
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("0.91.0.485")));
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("RequestGuid")));
-	mp_writer::write_string_auto(&mut result_buffer, Some(uuid));
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("HasDiscoveryInfo")));
-	mp_writer::write_bool(&mut result_buffer, true);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("Challenge")));
-	mp_writer::write_string_auto(&mut result_buffer, None);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("MOTD")));
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("Rust server does NOT welcome you :)")));
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("PlayersConnectedCount")));
-	mp_writer::write_int_auto(&mut result_buffer, 0);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("MaxPlayerCapacity")));
-	mp_writer::write_int_auto(&mut result_buffer, 666);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ConnectionRequiresPassword")));
-	mp_writer::write_bool(&mut result_buffer, false);
-	mp_writer::write_string_auto(&mut result_buffer, Some(String::from("ServerRunningInVerifiedMode")));
-	mp_writer::write_bool(&mut result_buffer, false);
+	
+	let response = DiscoveryResponse::simple(request.request_uid.clone(), 420, false, false);
+	response.write(&mut result_buffer);
 	
 	let size = (result_buffer.len() - 5) * 8;
 	result_buffer[3] = size as u8;
@@ -173,42 +119,10 @@ fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterat
 	let remote_time = lg_formatter::read_float(buffer_iterator);
 	println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
 	
-	let packet_id = mp_reader::read_int_auto(buffer_iterator); //15
-	println!("Packet ID is btw: {}", packet_id);
-	
-	let entry_count = mp_reader::read_array_auto(buffer_iterator);
-	if entry_count != 6
-	{
-		println!("Client connect packet has different entry count than 6, got: {}", entry_count);
+	if let Err(message) = Connect::parse(buffer_iterator) {
+		println!("Error while parsing connect packet: {}", message);
 		return;
 	}
-	
-	let mod_count = mp_reader::read_array_auto(buffer_iterator);
-	println!("Mod count: {}", mod_count);
-	for _ in 0..mod_count
-	{
-		let mod_id = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
-			println!("Received null mod name, illegal!");
-			return;
-		});
-		println!(" - {}", mod_id);
-	}
-	
-	let user_option_count = mp_reader::read_array_auto(buffer_iterator);
-	if user_option_count != 1
-	{
-		println!("More than one user argument, got: {}", user_option_count);
-		return;
-	}
-	let username = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
-		println!("Received null username, illegal!");
-		return;
-	});
-	println!("Username: {}", username);
-	println!("Version: {}", mp_reader::read_string_auto(buffer_iterator).unwrap());
-	println!("PWHash: {:x?}", mp_reader::read_binary_auto(buffer_iterator).unwrap());
-	println!("HailPayload: {:?}", mp_reader::read_string_auto(buffer_iterator));
-	println!("HailSignature: {:?}", mp_reader::read_string_auto(buffer_iterator));
 	
 	//Send answer:
 	
