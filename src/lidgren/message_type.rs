@@ -5,12 +5,16 @@ pub enum MessageType
 {
 	Unconnected,
 	UserUnreliable,
-	UserSequenced(u8), //Starting at 2
+	//Starting at 2:
+	UserSequenced(u8),
 	UserReliableUnordered,
-	UserReliableSequenced(u8), //Starting at 35
-	UserReliableOrdered(u8), //Starting at 67
+	//Starting at 35:
+	UserReliableSequenced(u8),
+	//Starting at 67:
+	UserReliableOrdered(u8),
 	
-	Unused(u8), //Starting at 99
+	//Starting at 99:
+	Unused(u8),
 	
 	LibraryError,
 	Ping,
