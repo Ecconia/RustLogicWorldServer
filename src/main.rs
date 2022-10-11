@@ -1,13 +1,16 @@
+pub mod network;
+pub mod lidgren;
+pub mod error_handling;
+
 use std::net::{SocketAddr, UdpSocket};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-pub mod network;
-pub mod lidgren;
-
 use network::message_pack::reader as mp_reader;
 use network::message_pack::writer as mp_writer;
 use lidgren::util::formatter as lg_formatter;
+use lidgren::data_structures::MessageHeader;
+use lidgren::message_type::MessageType::*;
 
 fn main() {
 	let socket = UdpSocket::bind("127.0.0.1:43531").expect("Could not bind server socket.");
@@ -18,7 +21,9 @@ fn main() {
 	{
 		println!("====================================");
 		let (buffer_amount, remote_address) = socket.recv_from(&mut buf).expect("Could not read incoming datagram packet.");
-		println!("Received UDP packet from \x1b[38;2;255;0;150m{}\x1b[m port \x1b[38;2;255;0;150m{}\x1b[m size \x1b[38;2;255;0;150m{}\x1b[m", remote_address.ip(), remote_address.port(), buffer_amount);
+		println!("Received UDP packet from \x1b[38;2;255;0;150m{}\x1b[m port \x1b[38;2;255;0;150m{}\x1b[m size \x1b[38;2;255;0;150m{}\x1b[m",
+		         remote_address.ip(), remote_address.port(), buffer_amount
+		);
 		
 		handle_packet(&socket, &remote_address, buffer_amount, &buf);
 	}
@@ -34,44 +39,45 @@ fn handle_packet(socket: &UdpSocket, remote_address: &SocketAddr, buffer_amount:
 	
 	let mut buffer_iterator = buf[0..buffer_amount].iter().peekable();
 	
-	let message_type_id = *buffer_iterator.next().unwrap();
-	let fragment = (**buffer_iterator.peek().unwrap() & 1) == 1;
-	let sequence_number = (*buffer_iterator.next().unwrap() as u16 >> 1) | ((*buffer_iterator.next().unwrap() as u16) << 7);
-	let bits_in_message = *buffer_iterator.next().unwrap() as u16 | ((*buffer_iterator.next().unwrap() as u16) << 8);
-	let bytes = (bits_in_message + 7) / 8;
-	println!("Type: \x1b[38;2;255;0;150m{}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m", message_type_id, fragment, sequence_number, bits_in_message, bytes);
-	//Read 5 bytes.
+	let header = custom_unwrap_result_or_else!(MessageHeader::from_stream(&mut buffer_iterator), (|message| {
+		println!("Error constructing message header: {}", message);
+	}));
+	println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
+	         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
+	);
 	
 	let remaining = buffer_amount - 5;
-	if remaining < bytes as usize
+	if remaining < header.bytes as usize
 	{
-		println!("Not enough bytes in packet. Expected {}, but got {}", bytes, buffer_amount - 5);
+		println!("Not enough bytes in packet. Expected {}, but got {}", header.bytes, buffer_amount - 5);
 		return;
 	}
 	
-	if message_type_id == 136
-	{
-		println!("=> Discovery!");
-		//Discovery packet!
-		handle_discovery(&socket, &remote_address, &mut buffer_iterator);
-	} else if message_type_id == 131 {
-		//Connect!
-		println!("=> Connect!");
-		handle_connect(&socket, &remote_address, &mut buffer_iterator);
-	} else if message_type_id == 133 {
-		println!("=> Connection established!");
-		//TODO: Read LG-Float (time)
-		println!("-Cannot handle yet-");
-	} else if message_type_id == 129 {
-		println!("=> Ping!");
-		println!("-Cannot handle yet-");
-	} else if message_type_id == 67 {
-		println!("=> UserReliableOrdered1!");
-		//Handle actual data...
-		println!("-Cannot handle yet-");
-	} else {
-		println!("Unknown message type!");
-		return;
+	match header.message_type {
+		Discovery => {
+			println!("=> Discovery!");
+			handle_discovery(&socket, &remote_address, &mut buffer_iterator);
+		}
+		Connect => {
+			println!("=> Connect!");
+			handle_connect(&socket, &remote_address, &mut buffer_iterator);
+		}
+		ConnectionEstablished => {
+			println!("=> Connection established!");
+			//TODO: Read LG-Float (time)
+			println!("-Cannot handle yet-");
+		}
+		Ping => {
+			println!("=> Ping!");
+			println!("-Cannot handle yet-");
+		}
+		UserReliableOrdered(channel) => {
+			println!("=> UserReliableOrdered on channel {}!", channel);
+			println!("-Cannot handle yet-");
+		}
+		_ => {
+			println!("Error: Cannot handle {:x?} yet!", header.message_type);
+		}
 	}
 }
 
@@ -91,42 +97,33 @@ fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iter
 		return;
 	}
 	
-	let key = mp_reader::read_string_auto(buffer_iterator);
-	if key.is_none()
-	{
+	let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
 		println!("While parsing discovery packet, expected first map key to be present, but got null.");
 		return;
-	}
-	let key_sane = key.unwrap();
-	if String::from("ForConnection").ne(&key_sane)
+	});
+	if String::from("ForConnection").ne(&key)
 	{
-		println!("While parsing discovery packet, expected first map key to be 'ForConnection', but got '{}'.", key_sane);
+		println!("While parsing discovery packet, expected first map key to be 'ForConnection', but got '{}'.", key);
 		return;
 	}
 	
 	let bool = mp_reader::read_bool_auto(buffer_iterator);
 	println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", bool);
 	
-	let key = mp_reader::read_string_auto(buffer_iterator);
-	if key.is_none()
-	{
+	let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
 		println!("While parsing discovery packet, expected first map key to be present, but got null.");
 		return;
-	}
-	let key_sane = key.unwrap();
-	if String::from("RequestGUID").ne(&key_sane)
+	});
+	if String::from("RequestGUID").ne(&key)
 	{
-		println!("While parsing discovery packet, expected first map key to be 'RequestGUID', but got '{}'.", key_sane);
+		println!("While parsing discovery packet, expected first map key to be 'RequestGUID', but got '{}'.", key);
 		return;
 	}
 	
-	let uuid_optional = mp_reader::read_string_auto(buffer_iterator);
-	if uuid_optional.is_none()
-	{
+	let uuid = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
 		println!("While parsing discovery packet, expected second value to be a string, but got null.");
 		return;
-	}
-	let uuid = uuid_optional.unwrap();
+	});
 	println!("Request UUID is: \x1b[38;2;255;0;150m{}\x1b[m", uuid);
 	
 	//Answer:
@@ -190,13 +187,11 @@ fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterat
 	println!("Mod count: {}", mod_count);
 	for _ in 0..mod_count
 	{
-		let mod_id = mp_reader::read_string_auto(buffer_iterator);
-		if mod_id.is_none()
-		{
+		let mod_id = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
 			println!("Received null mod name, illegal!");
 			return;
-		}
-		println!(" - {}", mod_id.unwrap());
+		});
+		println!(" - {}", mod_id);
 	}
 	
 	let user_option_count = mp_reader::read_array_auto(buffer_iterator);
@@ -205,13 +200,11 @@ fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterat
 		println!("More than one user argument, got: {}", user_option_count);
 		return;
 	}
-	let username = mp_reader::read_string_auto(buffer_iterator);
-	if username.is_none()
-	{
+	let username = custom_unwrap_option_or_else!(mp_reader::read_string_auto(buffer_iterator), {
 		println!("Received null username, illegal!");
 		return;
-	}
-	println!("Username: {}", username.unwrap());
+	});
+	println!("Username: {}", username);
 	println!("Version: {}", mp_reader::read_string_auto(buffer_iterator).unwrap());
 	println!("PWHash: {:x?}", mp_reader::read_binary_auto(buffer_iterator).unwrap());
 	println!("HailPayload: {:?}", mp_reader::read_string_auto(buffer_iterator));
