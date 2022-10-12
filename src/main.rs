@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, UdpSocket};
+use std::net::SocketAddr;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -12,77 +12,62 @@ use network::packets::c2s::connect::Connect;
 use lidgren::util::formatter as lg_formatter;
 use lidgren::data_structures::MessageHeader;
 use lidgren::message_type::MessageType;
+use lidgren::lidgren_server::ServerInstance;
+use rust_potato_server::lidgren::lidgren_server::{MessageDetails, PacketCallback};
+
+struct LWS {}
+
+impl PacketCallback for LWS {
+	fn handle_user_packet(&self, header: MessageHeader) {}
+	
+	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut Peekable<Iter<u8>>) {
+		match message.header.message_type {
+			MessageType::Discovery => {
+				println!("=> Discovery!");
+				handle_discovery(server, &message.address, iterator);
+			}
+			MessageType::Connect => {
+				println!("=> Connect!");
+				handle_connect(server, &message.address, iterator);
+			}
+			MessageType::ConnectionEstablished => {
+				println!("=> Connection established!");
+				//TODO: Read LG-Float (time)
+				println!("-Cannot handle yet-");
+			}
+			MessageType::Ping => {
+				println!("=> Ping!");
+				println!("-Cannot handle yet-");
+			}
+			MessageType::UserReliableOrdered(channel) => {
+				println!("=> UserReliableOrdered on channel {}!", channel);
+				println!("-Cannot handle yet-");
+			}
+			_ => {
+				println!("Error: Cannot handle {:x?} yet!", message.header.message_type);
+			}
+		}
+	}
+}
 
 fn main() {
-	let socket = UdpSocket::bind("127.0.0.1:43531").expect("Could not bind server socket.");
-	
-	let mut buf = [0; 0xFFFF];
+	let mut server = custom_unwrap_result_or_else!(ServerInstance::start(
+		String::from("Logic World"),
+		123,
+		String::from("[::]:43531"),
+		Box::new(LWS {}),
+	), (|error| {
+		println!("Issue starting server:\n{}", error);
+	}));
 	
 	loop
 	{
 		println!("====================================");
-		let (buffer_amount, remote_address) = socket.recv_from(&mut buf).expect("Could not read incoming datagram packet.");
-		println!("Received UDP packet from \x1b[38;2;255;0;150m{}\x1b[m port \x1b[38;2;255;0;150m{}\x1b[m size \x1b[38;2;255;0;150m{}\x1b[m",
-		         remote_address.ip(), remote_address.port(), buffer_amount
-		);
-		
-		handle_packet(&socket, &remote_address, buffer_amount, &buf);
+		server.read_input();
 	}
 }
 
-fn handle_packet(socket: &UdpSocket, remote_address: &SocketAddr, buffer_amount: usize, buf: &[u8])
-{
-	if buffer_amount < 5
-	{
-		println!("\033[38;2;255;0;0m -> PACKET TOO SHORT\033[m");
-		return;
-	}
-	
-	let mut buffer_iterator = buf[0..buffer_amount].iter().peekable();
-	
-	let header = custom_unwrap_result_or_else!(MessageHeader::from_stream(&mut buffer_iterator), (|message| {
-		println!("Error constructing message header: {}", message);
-	}));
-	println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
-	         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
-	);
-	
-	let remaining = buffer_amount - 5;
-	if remaining < header.bytes as usize
-	{
-		println!("Not enough bytes in packet. Expected {}, but got {}", header.bytes, buffer_amount - 5);
-		return;
-	}
-	
-	match header.message_type {
-		MessageType::Discovery => {
-			println!("=> Discovery!");
-			handle_discovery(&socket, &remote_address, &mut buffer_iterator);
-		}
-		MessageType::Connect => {
-			println!("=> Connect!");
-			handle_connect(&socket, &remote_address, &mut buffer_iterator);
-		}
-		MessageType::ConnectionEstablished => {
-			println!("=> Connection established!");
-			//TODO: Read LG-Float (time)
-			println!("-Cannot handle yet-");
-		}
-		MessageType::Ping => {
-			println!("=> Ping!");
-			println!("-Cannot handle yet-");
-		}
-		MessageType::UserReliableOrdered(channel) => {
-			println!("=> UserReliableOrdered on channel {}!", channel);
-			println!("-Cannot handle yet-");
-		}
-		_ => {
-			println!("Error: Cannot handle {:x?} yet!", header.message_type);
-		}
-	}
-}
-
-fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
+fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
 {
 	let request = custom_unwrap_result_or_else!(Discovery::parse(buffer_iterator), (|message| {
 		println!("Error while parsing the clients Discovery packet: {}", message);
@@ -106,11 +91,11 @@ fn handle_discovery(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iter
 	result_buffer[3] = size as u8;
 	result_buffer[4] = (size >> 8) as u8;
 	
-	let len = socket.send_to(&result_buffer, remote_address).unwrap();
+	let len = server.send(&result_buffer, remote_address);
 	println!("{} bytes sent", len);
 }
 
-fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
+fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
 {
 	let app_id = lg_formatter::read_string(buffer_iterator);
 	println!("App ID: '\x1b[38;2;255;0;150m{}\x1b[m'", app_id);
@@ -142,6 +127,6 @@ fn handle_connect(socket: &UdpSocket, remote_address: &SocketAddr, buffer_iterat
 	result_buffer[3] = size as u8;
 	result_buffer[4] = (size >> 8) as u8;
 	
-	let len = socket.send_to(&result_buffer, remote_address).unwrap();
+	let len = server.send(&result_buffer, remote_address);
 	println!("{} bytes sent", len);
 }

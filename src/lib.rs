@@ -23,6 +23,7 @@ pub mod lidgren {
 	
 	pub mod data_structures;
 	pub mod message_type;
+	pub mod lidgren_server;
 }
 
 pub mod error_handling;
