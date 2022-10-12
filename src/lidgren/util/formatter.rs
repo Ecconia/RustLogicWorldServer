@@ -1,36 +1,20 @@
-use std::iter::Peekable;
-use std::slice::Iter;
+use crate::custom_unwrap_result_or_else;
 
-pub fn read_byte(iterator: &mut Peekable<Iter<u8>>) -> u8
+use crate::util::custom_iterator::CustomIterator;
+
+pub fn read_int_64(iterator: &mut CustomIterator) -> u64
 {
-	let next = iterator.next();
-	if next.is_none()
-	{
-		panic!("Needed to read more bytes, but there was no more.");
+	if iterator.remaining() < 8 {
+		panic!("Ran out of bytes, while reading int_64: {}/{}", iterator.remaining(), 8);
 	}
-	return *next.unwrap();
-}
-
-pub fn read_bytes(iterator: &mut Peekable<Iter<u8>>, amount: usize) -> Vec<u8>
-{
-	let mut buffer = Vec::with_capacity(amount);
-	for _ in 0..amount
-	{
-		buffer.push(read_byte(iterator));
-	}
-	return buffer;
-}
-
-pub fn read_int_64(iterator: &mut Peekable<Iter<u8>>) -> u64
-{
-	return (read_byte(iterator) as u64) |
-		(read_byte(iterator) as u64) << 8 |
-		(read_byte(iterator) as u64) << 16 |
-		(read_byte(iterator) as u64) << 24 |
-		(read_byte(iterator) as u64) << 32 |
-		(read_byte(iterator) as u64) << 40 |
-		(read_byte(iterator) as u64) << 48 |
-		(read_byte(iterator) as u64) << 56;
+	return (iterator.next_unchecked() as u64) |
+		(iterator.next_unchecked() as u64) << 8 |
+		(iterator.next_unchecked() as u64) << 16 |
+		(iterator.next_unchecked() as u64) << 24 |
+		(iterator.next_unchecked() as u64) << 32 |
+		(iterator.next_unchecked() as u64) << 40 |
+		(iterator.next_unchecked() as u64) << 48 |
+		(iterator.next_unchecked() as u64) << 56;
 }
 
 pub fn write_int_64(buffer: &mut Vec<u8>, value: u64)
@@ -53,12 +37,15 @@ pub fn write_int_64(buffer: &mut Vec<u8>, value: u64)
 	buffer.push(val as u8);
 }
 
-pub fn read_int_32(iterator: &mut Peekable<Iter<u8>>) -> u32
+pub fn read_int_32(iterator: &mut CustomIterator) -> u32
 {
-	return (read_byte(iterator) as u32) |
-		(read_byte(iterator) as u32) >> 8 |
-		(read_byte(iterator) as u32) >> 16 |
-		(read_byte(iterator) as u32) >> 24;
+	if iterator.remaining() < 4 {
+		panic!("Ran out of bytes, while reading int_32: {}/{}", iterator.remaining(), 4);
+	}
+	return (iterator.next_unchecked() as u32) |
+		(iterator.next_unchecked() as u32) >> 8 |
+		(iterator.next_unchecked() as u32) >> 16 |
+		(iterator.next_unchecked() as u32) >> 24;
 }
 
 pub fn write_int_32(buffer: &mut Vec<u8>, value: u32)
@@ -73,7 +60,7 @@ pub fn write_int_32(buffer: &mut Vec<u8>, value: u32)
 	buffer.push(val as u8);
 }
 
-pub fn read_float(iterator: &mut Peekable<Iter<u8>>) -> f32
+pub fn read_float(iterator: &mut CustomIterator) -> f32
 {
 	return read_int_32(iterator) as f32;
 }
@@ -83,13 +70,13 @@ pub fn write_float(buffer: &mut Vec<u8>, value: f32)
 	write_int_32(buffer, value as u32);
 }
 
-pub fn read_vint_32(iterator: &mut Peekable<Iter<u8>>) -> u32
+pub fn read_vint_32(iterator: &mut CustomIterator) -> u32
 {
 	let mut one = 0 as u32;
 	let mut two = 0 as u32;
-	while iterator.peek().is_some()
+	while iterator.has_more()
 	{
-		let three = read_byte(iterator) as u32;
+		let three = iterator.next_unchecked() as u32;
 		one |= (three & 0x7f) << two;
 		two += 7;
 		if (three & 0x80) == 0
@@ -110,20 +97,19 @@ pub fn write_vint_32(buffer: &mut Vec<u8>, value: u32)
 	buffer.push(val as u8);
 }
 
-pub fn read_string(iterator: &mut Peekable<Iter<u8>>) -> String
+pub fn read_string(iterator: &mut CustomIterator) -> String
 {
 	let length = read_vint_32(iterator) as usize;
 	if length == 0
 	{
 		return String::from("");
 	}
-	let bytes = read_bytes(iterator, length);
-	let text = String::from_utf8(bytes);
-	if text.is_err()
-	{
-		panic!("Could not create string from bytes: {}", text.err().unwrap())
-	}
-	return text.unwrap();
+	let bytes = custom_unwrap_result_or_else!(iterator.read_bytes(length), (|message| {
+		panic!("While reading string: {}", message);
+	}));
+	return custom_unwrap_result_or_else!(String::from_utf8(bytes), (|message| {
+		panic!("Could not create string from bytes: {}", message);
+	}));
 }
 
 pub fn write_string(buffer: &mut Vec<u8>, value: &str)

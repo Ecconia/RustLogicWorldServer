@@ -1,6 +1,4 @@
 use std::net::SocketAddr;
-use std::iter::Peekable;
-use std::slice::Iter;
 
 use rust_potato_server::lidgren;
 use rust_potato_server::network;
@@ -14,13 +12,14 @@ use lidgren::data_structures::MessageHeader;
 use lidgren::message_type::MessageType;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::lidgren_server::{MessageDetails, PacketCallback};
+use rust_potato_server::util::custom_iterator::CustomIterator;
 
 struct LWS {}
 
 impl PacketCallback for LWS {
 	fn handle_user_packet(&self, header: MessageHeader) {}
 	
-	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut Peekable<Iter<u8>>) {
+	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut CustomIterator) {
 		match message.header.message_type {
 			MessageType::Discovery => {
 				println!("=> Discovery!");
@@ -67,9 +66,9 @@ fn main() {
 	}
 }
 
-fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
+fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator)
 {
-	let request = custom_unwrap_result_or_else!(Discovery::parse(buffer_iterator), (|message| {
+	let request = custom_unwrap_result_or_else!(Discovery::parse(iterator), (|message| {
 		println!("Error while parsing the clients Discovery packet: {}", message);
 		return;
 	}));
@@ -95,16 +94,16 @@ fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, buffer
 	println!("{} bytes sent", len);
 }
 
-fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, buffer_iterator: &mut Peekable<Iter<u8>>)
+fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator)
 {
-	let app_id = lg_formatter::read_string(buffer_iterator);
+	let app_id = lg_formatter::read_string(iterator);
 	println!("App ID: '\x1b[38;2;255;0;150m{}\x1b[m'", app_id);
-	let remote_id = lg_formatter::read_int_64(buffer_iterator);
+	let remote_id = lg_formatter::read_int_64(iterator);
 	println!("Remote ID: \x1b[38;2;255;0;150m{}\x1b[m", remote_id);
-	let remote_time = lg_formatter::read_float(buffer_iterator);
+	let remote_time = lg_formatter::read_float(iterator);
 	println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
 	
-	if let Err(message) = Connect::parse(buffer_iterator) {
+	if let Err(message) = Connect::parse(iterator) {
 		println!("Error while parsing connect packet: {}", message);
 		return;
 	}

@@ -1,9 +1,7 @@
-use std::iter::Peekable;
-use std::slice::Iter;
-
 use crate::custom_unwrap_option_or_else;
 
 use crate::network::message_pack::reader as mp_reader;
+use crate::util::custom_iterator::CustomIterator;
 
 pub struct Discovery
 {
@@ -13,7 +11,7 @@ pub struct Discovery
 
 impl Discovery
 {
-	pub fn parse(iterator: &mut Peekable<Iter<u8>>) -> Result<Discovery, String>
+	pub fn parse(iterator: &mut CustomIterator) -> Result<Discovery, String>
 	{
 		let packet_id = mp_reader::read_int_auto(iterator);
 		if packet_id != 12

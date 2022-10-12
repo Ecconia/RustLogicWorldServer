@@ -27,3 +27,7 @@ pub mod lidgren {
 }
 
 pub mod error_handling;
+
+pub mod util {
+	pub mod custom_iterator;
+}

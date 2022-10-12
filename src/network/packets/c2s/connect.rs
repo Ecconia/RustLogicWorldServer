@@ -1,9 +1,7 @@
-use std::iter::Peekable;
-use std::slice::Iter;
-
 use crate::custom_unwrap_option_or_else;
 
 use crate::network::message_pack::reader as mp_reader;
+use crate::util::custom_iterator::CustomIterator;
 
 pub struct Connect
 {
@@ -18,7 +16,7 @@ pub struct Connect
 
 impl Connect
 {
-	pub fn parse(iterator: &mut Peekable<Iter<u8>>) -> Result<Connect, String>
+	pub fn parse(iterator: &mut CustomIterator) -> Result<Connect, String>
 	{
 		let packet_id = mp_reader::read_int_auto(iterator);
 		if packet_id != 15

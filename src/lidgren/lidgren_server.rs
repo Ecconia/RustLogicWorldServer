@@ -1,10 +1,9 @@
 use std::net::{SocketAddr, UdpSocket};
-use std::iter::Peekable;
-use std::slice::Iter;
 
 use crate::custom_unwrap_result_or_else;
 
-use crate::lidgren::data_structures::MessageHeader;
+use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
+use crate::util::custom_iterator::CustomIterator;
 
 pub struct ServerInstance {
 	application_name: String,
@@ -47,36 +46,47 @@ impl ServerInstance {
 		         remote_address.ip(), remote_address.port(), amount_read
 		);
 		
-		if amount_read < 5
+		if amount_read < MESSAGE_HEADER_LENGTH
 		{
-			println!("\033[38;2;255;0;0m -> PACKET TOO SHORT\033[m");
+			//Drop packet, it cannot even hold a single Lidgren message header.
+			println!("Dropping packet, message header won't fit inside.");
 			return;
 		}
 		
-		let mut buffer_iterator = self.input_buffer[0..amount_read].iter().peekable();
+		let mut iterator = CustomIterator::create(&self.input_buffer[0..amount_read]);
 		
-		let header = custom_unwrap_result_or_else!(MessageHeader::from_stream(&mut buffer_iterator), (|message| {
-			println!("Error constructing message header: {}", message);
-		}));
-		println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
-		         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
-		);
-		
-		let remaining = amount_read - 5;
-		if remaining < header.bytes as usize
-		{
-			println!("Not enough bytes in packet. Expected {}, but got {}", header.bytes, amount_read - 5);
+		while iterator.remaining() >= MESSAGE_HEADER_LENGTH {
+			
+			let header = custom_unwrap_result_or_else!(MessageHeader::from_stream(&mut iterator), (|message| {
+				println!("Error constructing message header: {}", message);
+			}));
+			println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
+			         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
+			);
+			
+			if (iterator.remaining() as u16) < header.bytes {
+				println!("Message header declared payload size bigger than rest of packet: {}/{}", header.bytes, iterator.remaining());
+				return;
+			}
+			
+			let mut message_data_iterator = custom_unwrap_result_or_else!(iterator.sub_section(header.bytes as usize), (|message| {
+				println!("While creating message-sub-iterator: {}", message);
+				return;
+			}));
+			
+			self.handler.handle_system_packet(
+				MessageDetails {
+					header,
+					address: remote_address,
+				},
+				&self,
+				&mut message_data_iterator,
+			);
+		}
+		if iterator.remaining() > 0 {
+			println!("Dropping packet, there had been additional bytes to read that don't fit a message header. Amount {}", iterator.remaining());
 			return;
 		}
-		
-		self.handler.handle_system_packet(
-			MessageDetails {
-				header,
-				address: remote_address,
-			},
-			&self,
-			&mut buffer_iterator,
-		);
 	}
 	
 	pub fn send(&self, buffer: &Vec<u8>, address: &SocketAddr) -> usize
@@ -87,5 +97,5 @@ impl ServerInstance {
 
 pub trait PacketCallback {
 	fn handle_user_packet(&self, header: MessageHeader);
-	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut Peekable<Iter<u8>>);
+	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut CustomIterator);
 }
