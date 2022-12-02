@@ -253,6 +253,21 @@ impl ServerInstance {
 		println!("{} bytes sent", len);
 	}
 	
+	pub fn answer_discovery(&self, remote_address: &SocketAddr, discovery_payload: &[u8]) {
+		let payload_length = discovery_payload.len() * 8;
+		//TODO: panic if payload too large!
+		
+		let mut result_buffer = Vec::new();
+		result_buffer.push(MessageType::DiscoveryResponse.to_index());
+		result_buffer.push(0);
+		result_buffer.push(0);
+		result_buffer.push(payload_length as u8);
+		result_buffer.push((payload_length >> 8) as u8);
+		
+		let len = self.socket.send_to(&result_buffer, remote_address).unwrap();
+		println!("{} bytes sent", len);
+	}
+	
 	pub fn send(&self, buffer: &Vec<u8>, address: &SocketAddr) -> usize {
 		return self.socket.send_to(&buffer, address).unwrap();
 	}

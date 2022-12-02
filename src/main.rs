@@ -10,7 +10,6 @@ use network::packets::c2s::discovery::Discovery;
 use network::packets::s2c::discovery_response::DiscoveryResponse;
 use network::packets::c2s::connect::Connect;
 use network::message_pack::reader as mp_reader;
-use network::message_pack::writer as mp_writer;
 use lidgren::message_type::MessageType;
 use lidgren::lidgren_server::ServerInstance;
 use lidgren::lidgren_server::{MessageDetails, PacketCallback};
@@ -20,16 +19,16 @@ use util::custom_iterator::CustomIterator;
 struct LWS {}
 
 impl PacketCallback for LWS {
-	fn handle_user_packet(&self, send_callback: &SendCallback, data: Vec<u8>) {
+	fn handle_user_packet(&self, _send_callback: &SendCallback, data: Vec<u8>) {
 		//There is only data type... just ignore the header and get right to the data.
 		
 		let mut iterator = CustomIterator::create(&data[..]);
 		let it = &mut iterator;
 		let packet_id = mp_reader::read_int_auto(it);
-		println!("Received data packet with ID: {}", packet_id);
+		println!("[UserPacket] Received data packet with ID: {}", packet_id);
 		
 		if packet_id == 17 {
-			println!("Received: ConnectionEstablishedPacket");
+			println!("[UserPacket] Type: ConnectionEstablishedPacket");
 			let mut number = mp_reader::read_array_auto(it);
 			if number != 1 {
 				println!("Error: expected connection-established to have one element as array, got: {}", number);
@@ -42,26 +41,7 @@ impl PacketCallback for LWS {
 				println!("Error: expected connection-established to stop but have {} remaining bytes.", it.remaining());
 			}
 			
-			//Respond! - No need!
-			
-			// let mut result_buffer = Vec::new();
-			// result_buffer.push(MessageType::ConnectResponse.to_index());
-			// result_buffer.push(0);
-			// result_buffer.push(0);
-			// result_buffer.push(0);
-			// result_buffer.push(0);
-			//
-			// {
-			// 	let buf = &mut result_buffer;
-			// 	mp_writer::write_array_auto(buf, 8);
-			// }
-			//
-			// let size = (result_buffer.len() - 5) * 8;
-			// result_buffer[3] = size as u8;
-			// result_buffer[4] = (size >> 8) as u8;
-			//
-			// let len = send_callback.send(&result_buffer);
-			// println!("{} bytes sent", len);
+			//TODO: Respond with the world packet...
 		}
 	}
 	
@@ -114,22 +94,15 @@ fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, iterat
 	//Answer:
 	
 	let mut result_buffer = Vec::new();
-	
-	result_buffer.push(MessageType::DiscoveryResponse.to_index());
-	result_buffer.push(0);
-	result_buffer.push(0);
-	result_buffer.push(0);
-	result_buffer.push(0);
-	
-	let response = DiscoveryResponse::simple(request.request_uid.clone(), 420, false, false);
+	let response = DiscoveryResponse::simple(
+		request.request_uid.clone(),
+		420,
+		false,
+		false,
+	);
 	response.write(&mut result_buffer);
 	
-	let size = (result_buffer.len() - 5) * 8;
-	result_buffer[3] = size as u8;
-	result_buffer[4] = (size >> 8) as u8;
-	
-	let len = server.send(&result_buffer, remote_address);
-	println!("{} bytes sent", len);
+	server.answer_discovery(remote_address, &result_buffer[..]);
 }
 
 fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator)
