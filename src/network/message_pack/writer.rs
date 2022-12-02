@@ -132,3 +132,23 @@ pub fn write_map_auto(buffer: &mut Vec<u8>, value: u32)
 		_ => panic!("Not implemented yet.")
 	}
 }
+
+//Array:
+
+pub fn write_array_flex(buffer: &mut Vec<u8>, value: u32)
+{
+	if value > 15
+	{
+		panic!("Flex array only support up to 15 entries. Provided {}", value);
+	}
+	buffer.push(0x90 + value as u8);
+}
+
+pub fn write_array_auto(buffer: &mut Vec<u8>, value: u32)
+{
+	match value
+	{
+		0..=0xF => write_array_flex(buffer, value),
+		_ => panic!("Not implemented yet.")
+	}
+}

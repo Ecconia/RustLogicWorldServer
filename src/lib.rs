@@ -21,9 +21,14 @@ pub mod lidgren {
 		pub mod formatter;
 	}
 	
+	pub mod channel_handler {
+		pub mod reliable_ordered;
+	}
+	
 	pub mod data_structures;
 	pub mod message_type;
 	pub mod lidgren_server;
+	pub mod connected_client;
 }
 
 pub mod error_handling;

@@ -5,6 +5,7 @@ use crate::util::custom_iterator::CustomIterator;
 
 pub const MESSAGE_HEADER_LENGTH: usize = 5;
 
+#[derive(Debug)]
 pub struct MessageHeader
 {
 	//TBI: Eventually make them private and use getters and constructors?

@@ -58,6 +58,10 @@ impl<'a> CustomIterator<'a> {
 	}
 	
 	pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>, String> {
+		//If the iterator is exhausted draining it, might cause a call with 0 as amount, then just return an empty vector.
+		if amount == 0 {
+			return Ok(Vec::new());
+		}
 		let target_position = self.pointer + amount;
 		if target_position > self.buffer.len() {
 			return Err(format!("Expected more bytes while reading bytes, but reached ({}+{})/{}", self.pointer, amount, self.buffer.len()));
