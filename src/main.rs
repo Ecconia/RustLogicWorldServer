@@ -84,8 +84,7 @@ fn main() {
 	}
 }
 
-fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator)
-{
+fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator) {
 	let request = custom_unwrap_result_or_else!(Discovery::parse(iterator), (|message| {
 		println!("Error while parsing the clients Discovery packet: {}", message);
 		return;
@@ -105,8 +104,7 @@ fn handle_discovery(server: &ServerInstance, remote_address: &SocketAddr, iterat
 	server.answer_discovery(remote_address, &result_buffer[..]);
 }
 
-fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator)
-{
+fn handle_connect(server: &ServerInstance, remote_address: &SocketAddr, iterator: &mut CustomIterator) {
 	if let Err(message) = Connect::parse(iterator) {
 		println!("Error while parsing connect packet: {}", message);
 		return;

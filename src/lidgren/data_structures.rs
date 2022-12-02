@@ -6,8 +6,7 @@ use crate::util::custom_iterator::CustomIterator;
 pub const MESSAGE_HEADER_LENGTH: usize = 5;
 
 #[derive(Debug)]
-pub struct MessageHeader
-{
+pub struct MessageHeader {
 	//TBI: Eventually make them private and use getters and constructors?
 	pub message_type: MessageType,
 	pub fragment: bool,
@@ -16,10 +15,8 @@ pub struct MessageHeader
 	pub bytes: u16,
 }
 
-impl MessageHeader
-{
-	pub fn from_stream(iterator: &mut CustomIterator) -> Result<MessageHeader, String>
-	{
+impl MessageHeader {
+	pub fn from_stream(iterator: &mut CustomIterator) -> Result<MessageHeader, String> {
 		if iterator.remaining() < MESSAGE_HEADER_LENGTH {
 			return Err(format!("Not enough bytes to read the header! Only got {}/{}", iterator.remaining(), MESSAGE_HEADER_LENGTH));
 		}

@@ -1,7 +1,6 @@
 use crate::network::message_pack::writer as mp_writer;
 
-pub struct DiscoveryResponse
-{
+pub struct DiscoveryResponse {
 	pub version: String,
 	pub request_uid: String,
 	pub has_discovery_info: bool,
@@ -13,10 +12,8 @@ pub struct DiscoveryResponse
 	pub requires_verification: bool,
 }
 
-impl DiscoveryResponse
-{
-	pub fn simple(uid: String, max_player_amount: u32, requires_password: bool, requires_verification: bool) -> DiscoveryResponse
-	{
+impl DiscoveryResponse {
+	pub fn simple(uid: String, max_player_amount: u32, requires_password: bool, requires_verification: bool) -> DiscoveryResponse {
 		DiscoveryResponse {
 			version: String::from("0.91.0.586"),
 			request_uid: uid,
@@ -30,8 +27,7 @@ impl DiscoveryResponse
 		}
 	}
 	
-	pub fn write(&self, buffer: &mut Vec<u8>)
-	{
+	pub fn write(&self, buffer: &mut Vec<u8>) {
 		//Version:
 		mp_writer::write_int_auto(buffer, 11);
 		

@@ -208,7 +208,7 @@ impl ServerInstance {
 							println!("Client sent user-message, while not being connected!");
 							return;
 						});
-						connected_client.handle_new_message(SendCallback {socket: &self.socket, address: &remote_address}, handler, header, message_data_iterator);
+						connected_client.handle_new_message(SendCallback { socket: &self.socket, address: &remote_address }, handler, header, message_data_iterator);
 					}
 					_ => {
 						println!("Unexpected/Unimplemented message type!");

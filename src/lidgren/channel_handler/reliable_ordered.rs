@@ -26,12 +26,11 @@ impl ReliableOrderedHandler {
 		&mut self,
 		header: MessageHeader,
 		mut message_data_iterator: CustomIterator,
-		output_list: &mut Vec<(MessageHeader, Vec<u8>)>
+		output_list: &mut Vec<(MessageHeader, Vec<u8>)>,
 	) {
 		let relative_sequence_number = (header.sequence_number as i16 - self.latest_sequence_index as i16 + 1024 + 512) % 1024 - 512;
 		
-		if relative_sequence_number < 0
-		{
+		if relative_sequence_number < 0 {
 			//TODO: Acknowledge
 			
 			//Received message is older, than what is already processed, so lets just discard it.
@@ -40,8 +39,7 @@ impl ReliableOrderedHandler {
 		
 		let data = message_data_iterator.read_bytes(message_data_iterator.remaining()).unwrap();
 		
-		if relative_sequence_number == 0
-		{
+		if relative_sequence_number == 0 {
 			//TODO: Acknowledge
 			
 			//Assert: self.cycle_buffer[self.latest_sequence_index as usize % WINDOW_SIZE] is equal to None!
