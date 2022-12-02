@@ -14,7 +14,7 @@ impl Discovery
 	pub fn parse(iterator: &mut CustomIterator) -> Result<Discovery, String>
 	{
 		let packet_id = mp_reader::read_int_auto(iterator);
-		if packet_id != 12
+		if packet_id != 10
 		{
 			return Err(format!("Discovery had wrong data packet ID type: {}", packet_id));
 		}

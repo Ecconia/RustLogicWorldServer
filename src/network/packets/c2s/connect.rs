@@ -19,7 +19,7 @@ impl Connect
 	pub fn parse(iterator: &mut CustomIterator) -> Result<Connect, String>
 	{
 		let packet_id = mp_reader::read_int_auto(iterator);
-		if packet_id != 15
+		if packet_id != 16
 		{
 			return Err(format!("Discovery packet not from a 0.91 client, but {}, bye!", packet_id));
 		}
