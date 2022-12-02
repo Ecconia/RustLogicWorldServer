@@ -1,4 +1,4 @@
-use crate::custom_unwrap_result_or_else;
+use crate::error_handling::custom_unwrap_result_or_else;
 
 use crate::util::custom_iterator::CustomIterator;
 

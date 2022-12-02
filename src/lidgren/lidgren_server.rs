@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
 
-use crate::custom_unwrap_result_or_else;
-use crate::custom_unwrap_option_or_else;
+use crate::error_handling::custom_unwrap_result_or_else;
+use crate::error_handling::custom_unwrap_option_or_else;
 
 use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
 use crate::util::custom_iterator::CustomIterator;

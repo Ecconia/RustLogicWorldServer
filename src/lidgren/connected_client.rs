@@ -8,7 +8,7 @@ use crate::lidgren::data_structures::MessageHeader;
 use crate::lidgren::util::formatter as lg_formatter;
 use crate::util::custom_iterator::CustomIterator;
 
-use crate::custom_unwrap_result_or_else;
+use crate::error_handling::custom_unwrap_result_or_else;
 use crate::lidgren::lidgren_server::{PacketCallback, SendCallback};
 
 pub struct ConnectedClient {

@@ -1,4 +1,4 @@
-use crate::custom_unwrap_option_or_else;
+use crate::error_handling::custom_unwrap_option_or_else;
 
 use crate::lidgren::message_type::MessageType;
 use crate::util::custom_iterator::CustomIterator;

@@ -3,7 +3,7 @@ use rand::Rng;
 
 use rust_potato_server::lidgren;
 use rust_potato_server::network;
-use rust_potato_server::custom_unwrap_result_or_else;
+use rust_potato_server::error_handling::custom_unwrap_result_or_else;
 use rust_potato_server::util;
 
 use network::packets::c2s::discovery::Discovery;
