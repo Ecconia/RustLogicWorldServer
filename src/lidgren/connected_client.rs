@@ -1,6 +1,5 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::io::Write;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use crate::lidgren::channel_handler::reliable_ordered::ReliableOrderedHandler;
@@ -119,7 +118,7 @@ impl ConnectedClient {
 			fragment_data.chunk_checklist[fragment_index as usize] = true;
 			fragment_data.chunk_amount += 1;
 			let buffer = &mut fragment_data.buffer[..];
-			let mut section = &mut buffer[(fragment_index * fragment_chunk_size) as usize..]; //Starting offset until whenever...
+			let section = &mut buffer[(fragment_index * fragment_chunk_size) as usize..]; //Starting offset until whenever...
 			
 			let remaining = iterator.remaining();
 			if remaining > fragment_chunk_size as usize {
@@ -150,9 +149,7 @@ impl ConnectedClient {
 				println!("Life went wrong, when draining the custom iterator...\n -> {}", message);
 				return;
 			}));
-			if let Err(err) = section.write_all(&remaining_bytes[..]) {
-				println!("Life went wrong, when copying bytes to fragment buffer...\n -> {}", err);
-			}
+			section.copy_from_slice(&remaining_bytes[..]);
 			
 			if fragment_data.is_complete() {
 				let buffer = std::mem::replace(&mut fragment_data.buffer, Vec::with_capacity(0));

@@ -264,6 +264,8 @@ impl ServerInstance {
 		result_buffer.push(payload_length as u8);
 		result_buffer.push((payload_length >> 8) as u8);
 		
+		result_buffer.extend_from_slice(discovery_payload);
+		
 		let len = self.socket.send_to(&result_buffer, remote_address).unwrap();
 		println!("{} bytes sent", len);
 	}
