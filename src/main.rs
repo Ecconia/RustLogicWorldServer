@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::thread::sleep;
+use std::time::Duration;
 use rand::Rng;
 
 use rust_potato_server::lidgren;
@@ -79,8 +81,9 @@ fn main() {
 	}));
 	
 	loop {
-		println!("====================================");
-		server.read_input();
+		if !server.heartbeat() {
+			sleep(Duration::from_millis(10));
+		}
 	}
 }
 

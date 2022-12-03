@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::ErrorKind::WouldBlock;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
 
@@ -37,6 +38,7 @@ impl ServerInstance {
 		let socket = custom_unwrap_result_or_else!(UdpSocket::bind(target), (|error| {
 			return Err(format!("Could not bind server socket! Error: {}", error));
 		}));
+		socket.set_nonblocking(true).expect("Could not set the socket to non-blocking mode.");
 		
 		let input_buffer: [u8; 0xFFFF] = [0; 0xFFFF];
 		let now = Instant::now();
@@ -53,13 +55,28 @@ impl ServerInstance {
 		});
 	}
 	
-	pub fn read_input(&mut self) {
-		//Do heartbeat first:
-		//TODO: Give socket read a timeout, so that the heartbeat can run when there is no socket data incoming - for now this is fine.
-		self.heartbeat();
+	pub fn heartbeat(&mut self) -> bool {
+		if self.time_cleanup.elapsed().ge(&Duration::from_millis(500)) {
+			for client in self.user_map.values_mut() {
+				client.heartbeat();
+			}
+		}
 		
 		//Do actual reading:
-		let (amount_read, remote_address) = self.socket.recv_from(&mut self.input_buffer).expect("Could not read incoming datagram packet.");
+		//TODO: Read multiple packets, if there is enough time?
+		match self.socket.recv_from(&mut self.input_buffer) {
+			Err(err) if err.kind() == WouldBlock => {} //Do nothing, as no data is available.
+			Err(err) => println!("Error while reading from socket: {:?}", err),
+			Ok((amount_read, remote_address)) => {
+				self.process_packet(amount_read, remote_address);
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	pub fn process_packet(&mut self, amount_read: usize, remote_address: SocketAddr) {
+		println!("====================================");
 		println!("Received UDP packet from \x1b[38;2;255;0;150m{}\x1b[m port \x1b[38;2;255;0;150m{}\x1b[m size \x1b[38;2;255;0;150m{}\x1b[m",
 		         remote_address.ip(), remote_address.port(), amount_read
 		);
@@ -220,14 +237,6 @@ impl ServerInstance {
 		if iterator.remaining() > 0 {
 			println!("Dropping packet, there had been additional bytes to read that don't fit a message header. Amount {}", iterator.remaining());
 			return;
-		}
-	}
-	
-	pub fn heartbeat(&mut self) {
-		if self.time_cleanup.elapsed().ge(&Duration::from_millis(500)) {
-			for client in self.user_map.values_mut() {
-				client.heartbeat();
-			}
 		}
 	}
 	
