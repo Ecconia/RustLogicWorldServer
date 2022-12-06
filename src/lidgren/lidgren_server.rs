@@ -3,8 +3,7 @@ use std::io::ErrorKind::WouldBlock;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
 
-use crate::error_handling::custom_unwrap_result_or_else;
-use crate::error_handling::custom_unwrap_option_or_else;
+use crate::error_handling::{custom_unwrap_option_or_else, custom_unwrap_result_or_else, ResultErrorExt};
 
 use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
 use crate::util::custom_iterator::CustomIterator;
@@ -35,9 +34,7 @@ impl ServerInstance {
 		target: String,
 		handler: Box<dyn PacketCallback>,
 	) -> Result<ServerInstance, String> {
-		let socket = custom_unwrap_result_or_else!(UdpSocket::bind(target), (|error| {
-			return Err(format!("Could not bind server socket! Error: {}", error));
-		}));
+		let socket = UdpSocket::bind(target).forward_error("Could not bind server socket! Error: {}")?;
 		socket.set_nonblocking(true).expect("Could not set the socket to non-blocking mode.");
 		
 		let input_buffer: [u8; 0xFFFF] = [0; 0xFFFF];
@@ -129,7 +126,9 @@ impl ServerInstance {
 						// 	println!("Remote {}:{} sent wrong application identifier ID '{}'.", remote_address.ip(), remote_address.port(), remote_id);
 						// 	return;
 						// }
-						let remote_time = lg_formatter::read_float(&mut message_data_iterator);
+						let remote_time = custom_unwrap_result_or_else!(lg_formatter::read_float(&mut message_data_iterator).forward_error("While reading the remote time"), (|message| {
+							println!("Dropping packet, as an error has occurred:\n{}", message);
+						}));
 						println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
 					}
 					MessageType::Discovery => {
@@ -140,7 +139,9 @@ impl ServerInstance {
 							println!("Remote {}:{} sent invalid connection established message, expected exactly 4 bytes, got {}.", remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
 							return;
 						}
-						let remote_time = lg_formatter::read_float(&mut message_data_iterator);
+						let remote_time = custom_unwrap_result_or_else!(lg_formatter::read_float(&mut message_data_iterator).forward_error("While reading the remote time"), (|message| {
+							println!("Dropping packet, as an error has occurred:\n{}", message);
+						}));
 						println!("Remote time: {}", remote_time);
 						//Register user:
 						self.user_map.insert(remote_address.clone(), ConnectedClient::new(remote_address.clone()));

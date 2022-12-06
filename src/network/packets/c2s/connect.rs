@@ -1,4 +1,4 @@
-use crate::error_handling::custom_unwrap_option_or_else;
+use crate::error_handling::{custom_unwrap_option_or_else, ResultErrorExt};
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
@@ -15,42 +15,42 @@ pub struct Connect {
 
 impl Connect {
 	pub fn parse(iterator: &mut CustomIterator) -> Result<Connect, String> {
-		let packet_id = mp_reader::read_int_auto(iterator);
+		let packet_id = mp_reader::read_int_auto(iterator).forward_error("While reading connect packet ID")?;
 		if packet_id != 16 {
 			return Err(format!("Discovery packet not from a 0.91 client, but {}, bye!", packet_id));
 		}
 		
-		let entry_count = mp_reader::read_array_auto(iterator);
+		let entry_count = mp_reader::read_array_auto(iterator).forward_error("While reading connect packet entry count")?;
 		if entry_count != 6 {
 			return Err(format!("Client Connect packet has different entry count than 6, got: {}", entry_count));
 		}
 		
-		let mod_count = mp_reader::read_array_auto(iterator);
+		let mod_count = mp_reader::read_array_auto(iterator).forward_error("While reading connect packet mod count")?;
 		println!("Mod count: {}", mod_count);
 		let mut mods = Vec::new();
 		for _ in 0..mod_count {
-			let mod_id = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator), {
+			let mod_id = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet mod entry")?, {
 				return Err(format!("Received null mod name, illegal!"));
 			});
 			println!(" - {}", mod_id);
 			mods.push(mod_id);
 		}
 		
-		let user_option_count = mp_reader::read_array_auto(iterator);
+		let user_option_count = mp_reader::read_array_auto(iterator).forward_error("While reading connect packet user option count")?;
 		if user_option_count != 1 {
 			return Err(format!("More than one user argument, got: {}", user_option_count));
 		}
-		let username = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator), {
+		let username = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet username")?, {
 			return Err(format!("Received null username, illegal!"));
 		});
 		println!("Username: {}", username);
 		
-		let version = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator), {
+		let version = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet client version")?, {
 			return Err(format!("Received null version, unsupported!"));
 		});
-		let password_hash = mp_reader::read_binary_auto(iterator);
-		let hail_payload = mp_reader::read_string_auto(iterator);
-		let hail_signature = mp_reader::read_string_auto(iterator);
+		let password_hash = mp_reader::read_binary_auto(iterator).forward_error("While reading connect packet password hash")?;
+		let hail_payload = mp_reader::read_string_auto(iterator).forward_error("While reading connect packet hail payload")?;
+		let hail_signature = mp_reader::read_string_auto(iterator).forward_error("While reading connect packet hail signature")?;
 		println!("Version: {}", version);
 		println!("PWHash: {:x?}", password_hash);
 		println!("HailPayload: {:?}", hail_payload);

@@ -7,7 +7,6 @@ use crate::lidgren::data_structures::MessageHeader;
 use crate::lidgren::util::formatter as lg_formatter;
 use crate::util::custom_iterator::CustomIterator;
 
-use crate::error_handling::custom_unwrap_result_or_else;
 use crate::lidgren::lidgren_server::{PacketCallback, SendCallback};
 
 pub struct ConnectedClient {
@@ -46,28 +45,24 @@ impl ConnectedClient {
 			handler.handle_user_packet(send_callback, data);
 			return;
 		}
+		//TODO: Eventually replace panic with something that the remote cannot trigger. Packets are meant to be dropped with a warning if invalid.
 		//Else we got a fragment to handle, read header:
 		let mut iterator = CustomIterator::create(&data[..]);
 		if iterator.remaining() < 123 {
-			println!("Not enough bytes to read fragment header!");
-			return;
+			panic!("Not enough bytes to read fragment header!");
 		}
-		let fragment_group_id = custom_unwrap_result_or_else!(lg_formatter::read_vint_32(&mut iterator), (|message| {
-			println!("While reading 'fragment_group_id', ran out of bytes:\n-> {}", message);
-			return;
-		}));
-		let fragment_bits = custom_unwrap_result_or_else!(lg_formatter::read_vint_32(&mut iterator), (|message| {
-			println!("While reading 'fragment_bits', ran out of bytes:\n-> {}", message);
-			return;
-		}));
-		let fragment_chunk_size = custom_unwrap_result_or_else!(lg_formatter::read_vint_32(&mut iterator), (|message| {
-			println!("While reading 'fragment_chunk_size', ran out of bytes:\n-> {}", message);
-			return;
-		}));
-		let fragment_index = custom_unwrap_result_or_else!(lg_formatter::read_vint_32(&mut iterator), (|message| {
-			println!("While reading 'fragment_index', ran out of bytes:\n-> {}", message);
-			return;
-		}));
+		let fragment_group_id = lg_formatter::read_vint_32(&mut iterator).unwrap_or_else(|message| {
+			panic!("While reading 'fragment_group_id', ran out of bytes:\n-> {}", message);
+		});
+		let fragment_bits = lg_formatter::read_vint_32(&mut iterator).unwrap_or_else(|message| {
+			panic!("While reading 'fragment_bits', ran out of bytes:\n-> {}", message);
+		});
+		let fragment_chunk_size = lg_formatter::read_vint_32(&mut iterator).unwrap_or_else(|message| {
+			panic!("While reading 'fragment_chunk_size', ran out of bytes:\n-> {}", message);
+		});
+		let fragment_index = lg_formatter::read_vint_32(&mut iterator).unwrap_or_else(|message| {
+			panic!("While reading 'fragment_index', ran out of bytes:\n-> {}", message);
+		});
 		
 		//Copy code from original:
 		let _total_bytes = (fragment_bits + 7) / 8;
@@ -145,10 +140,9 @@ impl ConnectedClient {
 					         remaining, fragment_chunk_size);
 				}
 			}
-			let remaining_bytes = custom_unwrap_result_or_else!(iterator.read_bytes(remaining), (|message| {
-				println!("Life went wrong, when draining the custom iterator...\n -> {}", message);
-				return;
-			}));
+			let remaining_bytes = iterator.read_bytes(remaining).unwrap_or_else(|message| {
+				panic!("Life went wrong, when draining the custom iterator...\n -> {}", message);
+			});
 			section.copy_from_slice(&remaining_bytes[..]);
 			
 			if fragment_data.is_complete() {

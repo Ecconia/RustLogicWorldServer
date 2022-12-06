@@ -26,21 +26,33 @@ impl PacketCallback for LWS {
 		
 		let mut iterator = CustomIterator::create(&data[..]);
 		let it = &mut iterator;
-		let packet_id = mp_reader::read_int_auto(it);
+		let packet_id = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
+			println!("While reading user packet ID:\n -> {}", message);
+			return;
+		}));
 		println!("[UserPacket] Received data packet with ID: {}", packet_id);
 		
 		if packet_id == 17 {
 			println!("[UserPacket] Type: ConnectionEstablishedPacket");
-			let mut number = mp_reader::read_array_auto(it);
+			let mut number = custom_unwrap_result_or_else!(mp_reader::read_array_auto(it), (|message| {
+				println!("While parsing ConnectionEstablishedPacket's entry count:\n -> {}", message);
+				return;
+			}));
 			if number != 1 {
 				println!("Error: expected connection-established to have one element as array, got: {}", number);
+				return;
 			}
-			number = mp_reader::read_int_auto(it);
+			number = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
+				println!("While parsing ConnectionEstablishedPacket's dummy value:\n -> {}", message);
+				return;
+			}));
 			if number != 0 {
 				println!("Error: expected connection-established expected integer of value 0, got: {}", number);
+				return;
 			}
 			if it.has_more() {
 				println!("Error: expected connection-established to stop but have {} remaining bytes.", it.remaining());
+				return;
 			}
 			
 			//TODO: Respond with the world packet...
