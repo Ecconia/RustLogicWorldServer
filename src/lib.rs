@@ -29,6 +29,7 @@ pub mod lidgren {
 	pub mod message_type;
 	pub mod lidgren_server;
 	pub mod connected_client;
+	pub mod data_types;
 }
 
 pub mod error_handling;

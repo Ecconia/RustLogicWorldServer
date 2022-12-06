@@ -4,10 +4,11 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use crate::lidgren::channel_handler::reliable_ordered::ReliableOrderedHandler;
 use crate::lidgren::data_structures::MessageHeader;
+use crate::lidgren::data_types::DataType;
 use crate::lidgren::util::formatter as lg_formatter;
 use crate::util::custom_iterator::CustomIterator;
 
-use crate::lidgren::lidgren_server::{PacketCallback, SendCallback};
+use crate::lidgren::lidgren_server::DataPacket;
 
 pub struct ConnectedClient {
 	pub remote_address: SocketAddr,
@@ -28,7 +29,12 @@ impl ConnectedClient {
 		self.cleanup();
 	}
 	
-	pub fn handle_new_message(&mut self, send_callback: SendCallback, handler: &dyn PacketCallback, header: MessageHeader, message_data_iterator: CustomIterator) {
+	pub fn handle_new_message(&mut self,
+	                          new_packets: &mut Vec<DataPacket>,
+	                          address: SocketAddr,
+	                          header: MessageHeader,
+	                          message_data_iterator: CustomIterator,
+	) {
 		if self.channel_handler.is_none() {
 			self.channel_handler = Some(ReliableOrderedHandler::new())
 		}
@@ -36,13 +42,22 @@ impl ConnectedClient {
 		let mut output_list_to_make_rust_compiler_happy = Vec::new();
 		channel.handle(header, message_data_iterator, &mut output_list_to_make_rust_compiler_happy);
 		for forward_message in output_list_to_make_rust_compiler_happy {
-			self.handle(&send_callback, handler, forward_message.0, forward_message.1);
+			self.handle(new_packets, address, forward_message.0, forward_message.1);
 		}
 	}
 	
-	pub fn handle(&mut self, send_callback: &SendCallback, handler: &dyn PacketCallback, header: MessageHeader, data: Vec<u8>) {
+	pub fn handle(&mut self,
+	              new_packets: &mut Vec<DataPacket>,
+	              address: SocketAddr,
+	              header: MessageHeader,
+	              data: Vec<u8>,
+	) {
 		if !header.fragment {
-			handler.handle_user_packet(send_callback, data);
+			new_packets.push(DataPacket {
+				data_type: DataType::Data,
+				remote_address: address,
+				data,
+			});
 			return;
 		}
 		//TODO: Eventually replace panic with something that the remote cannot trigger. Packets are meant to be dropped with a warning if invalid.
@@ -147,7 +162,11 @@ impl ConnectedClient {
 			
 			if fragment_data.is_complete() {
 				let buffer = std::mem::replace(&mut fragment_data.buffer, Vec::with_capacity(0));
-				handler.handle_user_packet(send_callback, buffer);
+				new_packets.push(DataPacket {
+					data_type: DataType::Data,
+					remote_address: address,
+					data: buffer,
+				});
 			}
 		}
 	}

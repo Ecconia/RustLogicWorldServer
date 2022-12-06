@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::ErrorKind::WouldBlock;
 use std::net::{SocketAddr, UdpSocket};
+use std::ops::Add;
 use std::time::{Duration, Instant};
 
 use crate::error_handling::{custom_unwrap_option_or_else, custom_unwrap_result_or_else, ResultErrorExt};
@@ -9,6 +10,7 @@ use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
 use crate::util::custom_iterator::CustomIterator;
 use crate::lidgren::message_type::MessageType;
 use crate::lidgren::connected_client::ConnectedClient;
+use crate::lidgren::data_types::DataType;
 use crate::lidgren::util::formatter as lg_formatter;
 
 pub struct ServerInstance {
@@ -16,10 +18,10 @@ pub struct ServerInstance {
 	server_unique_id: u64,
 	socket: UdpSocket,
 	input_buffer: [u8; 0xFFFF],
-	handler: Box<dyn PacketCallback>,
 	user_map: HashMap<SocketAddr, ConnectedClient>,
 	time_run_duration: Instant,
 	time_cleanup: Instant,
+	pub new_data_packets: Vec<DataPacket>,
 }
 
 pub struct MessageDetails {
@@ -27,12 +29,18 @@ pub struct MessageDetails {
 	pub address: SocketAddr,
 }
 
+pub struct DataPacket {
+	pub data_type: DataType,
+	//TODO: Eventually somehow store the client here, instead of this. But lets not fight the borrow checker yet...
+	pub remote_address: SocketAddr,
+	pub data: Vec<u8>,
+}
+
 impl ServerInstance {
 	pub fn start(
 		application_name: String,
 		server_unique_id: u64,
 		target: String,
-		handler: Box<dyn PacketCallback>,
 	) -> Result<ServerInstance, String> {
 		let socket = UdpSocket::bind(target).forward_error("Could not bind server socket! Error: {}")?;
 		socket.set_nonblocking(true).expect("Could not set the socket to non-blocking mode.");
@@ -45,31 +53,37 @@ impl ServerInstance {
 			input_buffer,
 			application_name,
 			server_unique_id,
-			handler,
 			user_map: HashMap::new(),
 			time_run_duration: now,
 			time_cleanup: now,
+			new_data_packets: Vec::new(),
 		});
 	}
 	
-	pub fn heartbeat(&mut self) -> bool {
-		if self.time_cleanup.elapsed().ge(&Duration::from_millis(500)) {
+	pub fn heartbeat(&mut self) {
+		let duration_between_cleanups = Duration::from_millis(500);
+		if self.time_cleanup.elapsed().ge(&duration_between_cleanups) {
 			for client in self.user_map.values_mut() {
 				client.heartbeat();
 			}
+			self.time_cleanup = self.time_cleanup.add(duration_between_cleanups);
 		}
 		
-		//Do actual reading:
-		//TODO: Read multiple packets, if there is enough time?
-		match self.socket.recv_from(&mut self.input_buffer) {
-			Err(err) if err.kind() == WouldBlock => {} //Do nothing, as no data is available.
-			Err(err) => println!("Error while reading from socket: {:?}", err),
-			Ok((amount_read, remote_address)) => {
-				self.process_packet(amount_read, remote_address);
-				return true;
+		let start = Instant::now();
+		let max_read_duration = Duration::from_millis(100);
+		//Read packets until at max 100ms have passed, then the rest of the program should continue (to consume the new packets).
+		while start.elapsed().lt(&max_read_duration)
+		{
+			match self.socket.recv_from(&mut self.input_buffer) {
+				Err(err) if err.kind() == WouldBlock => {
+					break; //Nothing to read right now, so just stop attempting for now.
+				}
+				Err(err) => println!("Error while reading from socket: {:?}", err),
+				Ok((amount_read, remote_address)) => {
+					self.process_packet(amount_read, remote_address);
+				}
 			}
 		}
-		return false;
 	}
 	
 	pub fn process_packet(&mut self, amount_read: usize, remote_address: SocketAddr) {
@@ -120,19 +134,25 @@ impl ServerInstance {
 							println!("Remote {}:{} sent wrong application identifier name '{}'.", remote_address.ip(), remote_address.port(), app_id);
 							return;
 						}
+						//TODO: Actually somehow use the ID? Only useful if routers actually do funky stuff...
 						let _remote_id = lg_formatter::read_int_64(&mut message_data_iterator);
-						//The following code is wrong and pointless.
-						// if self.application_identifier.ne(&remote_id) {
-						// 	println!("Remote {}:{} sent wrong application identifier ID '{}'.", remote_address.ip(), remote_address.port(), remote_id);
-						// 	return;
-						// }
 						let remote_time = custom_unwrap_result_or_else!(lg_formatter::read_float(&mut message_data_iterator).forward_error("While reading the remote time"), (|message| {
 							println!("Dropping packet, as an error has occurred:\n{}", message);
 						}));
 						println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
+						self.new_data_packets.push(DataPacket {
+							data_type: DataType::Connect,
+							remote_address,
+							data: message_data_iterator.consume()
+						});
 					}
 					MessageType::Discovery => {
 						//Accept!
+						self.new_data_packets.push(DataPacket {
+							data_type: DataType::Discovery,
+							remote_address,
+							data: message_data_iterator.consume()
+						});
 					}
 					MessageType::ConnectionEstablished => {
 						if message_data_iterator.remaining() != 4 {
@@ -180,26 +200,18 @@ impl ServerInstance {
 					}
 					_ => {
 						//Reject!
-						println!("Rejecting message type {:?} from {}:{}",
-						         header.message_type, remote_address.ip(), remote_address.port());
+						println!("Rejecting message type {:?} from {}:{} remaining bytes {}",
+						         header.message_type, remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
 						return;
 					}
 				}
-				
-				self.handler.handle_system_packet(
-					MessageDetails {
-						header,
-						address: remote_address,
-					},
-					self,
-					&mut message_data_iterator,
-				);
 			} else {
 				//Get channel:
 				match header.message_type {
 					MessageType::UserReliableOrdered(channel) => {
 						//Acknowledge:
 						{
+							//TODO: Do acknowledge somewhere else? (And collected)
 							let mut result_buffer = Vec::new();
 							result_buffer.push(MessageType::Acknowledge.to_index());
 							result_buffer.push(0);
@@ -220,13 +232,17 @@ impl ServerInstance {
 							println!("Cannot handle anything but channel 0 yet!");
 							return;
 						}
-						let handler = self.handler.as_ref();
 						let connected_client = self.user_map.get_mut(&remote_address);
 						let connected_client = custom_unwrap_option_or_else!(connected_client, {
 							println!("Client sent user-message, while not being connected!");
 							return;
 						});
-						connected_client.handle_new_message(SendCallback { socket: &self.socket, address: &remote_address }, handler, header, message_data_iterator);
+						connected_client.handle_new_message(
+							&mut self.new_data_packets,
+							remote_address,
+							header,
+							message_data_iterator,
+						);
 					}
 					_ => {
 						println!("Unexpected/Unimplemented message type!");
@@ -283,11 +299,6 @@ impl ServerInstance {
 	pub fn send(&self, buffer: &Vec<u8>, address: &SocketAddr) -> usize {
 		return self.socket.send_to(&buffer, address).unwrap();
 	}
-}
-
-pub trait PacketCallback {
-	fn handle_user_packet(&self, send_callback: &SendCallback, data: Vec<u8>);
-	fn handle_system_packet(&self, message: MessageDetails, server: &ServerInstance, iterator: &mut CustomIterator);
 }
 
 pub struct SendCallback<'a> {

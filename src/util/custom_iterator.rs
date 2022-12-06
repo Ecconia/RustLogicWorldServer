@@ -71,6 +71,16 @@ impl<'a> CustomIterator<'a> {
 		return Ok(result);
 	}
 	
+	pub fn consume(&mut self) -> Vec<u8> {
+		if self.pointer > self.buffer.len() {
+			return Vec::new(); //We are already out of bounds - however this might have happened.
+		}
+		//Else return whatever remains:
+		let result = self.buffer[self.pointer..].to_vec();
+		self.pointer = self.buffer.len(); //And set the point to the end of the buffer.
+		return result;
+	}
+	
 	pub fn has_more(&self) -> bool {
 		return self.pointer < self.buffer.len();
 	}
