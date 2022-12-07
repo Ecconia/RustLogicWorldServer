@@ -30,7 +30,7 @@ impl Connect {
 		let mut mods = Vec::new();
 		for _ in 0..mod_count {
 			let mod_id = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet mod entry")?, {
-				return Err(format!("Received null mod name, illegal!"));
+				return Err("Received null mod name, illegal!".to_string());
 			});
 			println!(" - {}", mod_id);
 			mods.push(mod_id);
@@ -41,12 +41,12 @@ impl Connect {
 			return Err(format!("More than one user argument, got: {}", user_option_count));
 		}
 		let username = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet username")?, {
-			return Err(format!("Received null username, illegal!"));
+			return Err("Received null username, illegal!".to_string());
 		});
 		println!("Username: {}", username);
 		
 		let version = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading connect packet client version")?, {
-			return Err(format!("Received null version, unsupported!"));
+			return Err("Received null version, unsupported!".to_string());
 		});
 		let password_hash = mp_reader::read_binary_auto(iterator).forward_error("While reading connect packet password hash")?;
 		let hail_payload = mp_reader::read_string_auto(iterator).forward_error("While reading connect packet hail payload")?;
@@ -56,13 +56,13 @@ impl Connect {
 		println!("HailPayload: {:?}", hail_payload);
 		println!("HailSignature: {:?}", hail_signature);
 		
-		return Ok(Connect {
+		Ok(Connect {
 			username,
 			mods,
 			version,
 			password_hash,
 			hail_payload,
 			hail_signature,
-		});
+		})
 	}
 }

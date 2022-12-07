@@ -5,16 +5,16 @@ pub struct CustomIterator<'a> {
 
 impl<'a> CustomIterator<'a> {
 	pub fn create(buffer: &[u8]) -> CustomIterator {
-		return CustomIterator {
+		CustomIterator {
 			buffer,
 			pointer: 0,
-		};
+		}
 	}
 	
 	pub fn next_unchecked(&mut self) -> u8 {
 		let value = self.buffer[self.pointer];
 		self.pointer += 1;
-		return value;
+		value
 	}
 	
 	pub fn next(&mut self) -> Result<u8, String> {
@@ -23,26 +23,26 @@ impl<'a> CustomIterator<'a> {
 		}
 		let value = self.buffer[self.pointer];
 		self.pointer += 1;
-		return Ok(value);
+		Ok(value)
 	}
 	
 	pub fn peek_unchecked(&self) -> u8 {
-		return self.buffer[self.pointer];
+		self.buffer[self.pointer]
 	}
 	
 	pub fn peek(&self) -> Result<u8, String> {
 		if self.pointer >= self.buffer.len() {
 			return Err(format!("Expected more bytes while peeking, but reached {}/{}", self.pointer, self.buffer.len()));
 		}
-		return Ok(self.buffer[self.pointer]);
+		Ok(self.buffer[self.pointer])
 	}
 	
 	pub fn remaining(&self) -> usize {
-		return if self.pointer > self.buffer.len() {
+		if self.pointer > self.buffer.len() {
 			0
 		} else {
 			self.buffer.len() - self.pointer
-		};
+		}
 	}
 	
 	pub fn sub_section(&mut self, amount: usize) -> Result<CustomIterator, String> {
@@ -54,7 +54,7 @@ impl<'a> CustomIterator<'a> {
 			&self.buffer[self.pointer..target_position],
 		);
 		self.pointer += amount;
-		return Ok(sub_iterator);
+		Ok(sub_iterator)
 	}
 	
 	pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>, String> {
@@ -68,7 +68,7 @@ impl<'a> CustomIterator<'a> {
 		}
 		let result = self.buffer[self.pointer..target_position].to_vec();
 		self.pointer += amount;
-		return Ok(result);
+		Ok(result)
 	}
 	
 	pub fn consume(&mut self) -> Vec<u8> {
@@ -78,11 +78,11 @@ impl<'a> CustomIterator<'a> {
 		//Else return whatever remains:
 		let result = self.buffer[self.pointer..].to_vec();
 		self.pointer = self.buffer.len(); //And set the point to the end of the buffer.
-		return result;
+		result
 	}
 	
 	pub fn has_more(&self) -> bool {
-		return self.pointer < self.buffer.len();
+		self.pointer < self.buffer.len()
 	}
 	
 	pub fn skip(&mut self) {

@@ -57,7 +57,7 @@ pub fn write_int_32(buffer: &mut Vec<u8>, value: u32) {
 }
 
 pub fn read_float(iterator: &mut CustomIterator) -> Result<f32, String> {
-	return Ok(read_int_32(iterator).forward_error("While converting int to float")? as f32);
+	Ok(read_int_32(iterator).forward_error("While converting int to float")? as f32)
 }
 
 pub fn write_float(buffer: &mut Vec<u8>, value: f32) {
@@ -65,8 +65,8 @@ pub fn write_float(buffer: &mut Vec<u8>, value: f32) {
 }
 
 pub fn read_vint_32(iterator: &mut CustomIterator) -> Result<u32, String> {
-	let mut one = 0 as u32;
-	let mut two = 0 as u32;
+	let mut one = 0_u32;
+	let mut two = 0_u32;
 	loop {
 		let three = iterator.next().forward_error("While reading variable int, ran out of bytes:")? as u32;
 		one |= (three & 0x7f) << two;
@@ -75,7 +75,7 @@ pub fn read_vint_32(iterator: &mut CustomIterator) -> Result<u32, String> {
 			break;
 		}
 	}
-	return Ok(one);
+	Ok(one)
 }
 
 pub fn write_vint_32(buffer: &mut Vec<u8>, value: u32) {
@@ -93,7 +93,7 @@ pub fn read_string(iterator: &mut CustomIterator) -> Result<String, String> {
 		return Ok(String::from(""));
 	}
 	let bytes = iterator.read_bytes(length).forward_error("While reading bytes of string, ran out of bytes:")?;
-	Ok(String::from_utf8(bytes).forward_error("While constructing string from bytes, ran into encoding error")?)
+	String::from_utf8(bytes).forward_error("While constructing string from bytes, ran into encoding error")
 }
 
 pub fn write_string(buffer: &mut Vec<u8>, value: &str) {

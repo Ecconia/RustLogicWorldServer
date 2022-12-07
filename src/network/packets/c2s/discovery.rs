@@ -20,7 +20,7 @@ impl Discovery {
 		}
 		//Intention to connect:
 		let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet key 'ForConnection'")?, {
-			return Err(format!("While parsing discovery packet, expected first map key to be present, but got null."));
+			return Err("While parsing discovery packet, expected first map key to be present, but got null.".to_string());
 		});
 		if String::from("ForConnection").ne(&key) {
 			return Err(format!("While parsing discovery packet, expected first map key to be 'ForConnection', but got '{}'.", key));
@@ -30,14 +30,14 @@ impl Discovery {
 		println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", intention_to_connect);
 		
 		let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet key 'RequestGUID'")?, {
-			return Err(format!("While parsing discovery packet, expected first map key to be present, but got null."));
+			return Err("While parsing discovery packet, expected first map key to be present, but got null.".to_string());
 		});
 		if String::from("RequestGUID").ne(&key) {
 			return Err(format!("While parsing discovery packet, expected first map key to be 'RequestGUID', but got '{}'.", key));
 		}
 		
 		let request_uid = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet GUID string")?, {
-			return Err(format!("While parsing discovery packet, expected second value to be a string, but got null."));
+			return Err("While parsing discovery packet, expected second value to be a string, but got null.".to_string());
 		});
 		println!("Request UUID is: \x1b[38;2;255;0;150m{}\x1b[m", request_uid);
 		

@@ -48,7 +48,7 @@ impl ServerInstance {
 		let input_buffer: [u8; 0xFFFF] = [0; 0xFFFF];
 		let now = Instant::now();
 		
-		return Ok(ServerInstance {
+		Ok(ServerInstance {
 			socket,
 			input_buffer,
 			application_name,
@@ -57,7 +57,7 @@ impl ServerInstance {
 			time_run_duration: now,
 			time_cleanup: now,
 			new_data_packets: Vec::new(),
-		});
+		})
 	}
 	
 	pub fn heartbeat(&mut self) {
@@ -128,7 +128,6 @@ impl ServerInstance {
 					MessageType::Connect => {
 						let app_id = custom_unwrap_result_or_else!(lg_formatter::read_string(&mut message_data_iterator), (|message| {
 							println!("While reading app ID in Connect message, encountered issue:\n-> {}", message);
-							return;
 						}));
 						if self.application_name.ne(&app_id) {
 							println!("Remote {}:{} sent wrong application identifier name '{}'.", remote_address.ip(), remote_address.port(), app_id);
@@ -297,18 +296,6 @@ impl ServerInstance {
 	}
 	
 	pub fn send(&self, buffer: &Vec<u8>, address: &SocketAddr) -> usize {
-		return self.socket.send_to(&buffer, address).unwrap();
-	}
-}
-
-pub struct SendCallback<'a> {
-	socket: &'a UdpSocket,
-	pub address: &'a SocketAddr,
-}
-
-impl<'a> SendCallback<'a> {
-	pub fn send(&self, data: &Vec<u8>) -> usize {
-		//TODO: Dispose of unwrap here...
-		return self.socket.send_to(data, self.address).unwrap();
+		self.socket.send_to(&buffer, address).unwrap()
 	}
 }

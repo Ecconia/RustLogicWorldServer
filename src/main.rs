@@ -71,25 +71,22 @@ fn handle_user_packet(
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
 	let packet_id = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
-			println!("While reading user packet ID:\n -> {}", message);
-			return;
-		}));
+		println!("While reading user packet ID:\n -> {}", message);
+	}));
 	println!("[UserPacket] Received data packet with ID: {}", packet_id);
 	
 	if packet_id == 17 {
 		println!("[UserPacket] Type: ConnectionEstablishedPacket");
 		let mut number = custom_unwrap_result_or_else!(mp_reader::read_array_auto(it), (|message| {
-				println!("While parsing ConnectionEstablishedPacket's entry count:\n -> {}", message);
-				return;
-			}));
+			println!("While parsing ConnectionEstablishedPacket's entry count:\n -> {}", message);
+		}));
 		if number != 1 {
 			println!("Error: expected connection-established to have one element as array, got: {}", number);
 			return;
 		}
 		number = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
-				println!("While parsing ConnectionEstablishedPacket's dummy value:\n -> {}", message);
-				return;
-			}));
+			println!("While parsing ConnectionEstablishedPacket's dummy value:\n -> {}", message);
+		}));
 		if number != 0 {
 			println!("Error: expected connection-established expected integer of value 0, got: {}", number);
 			return;
@@ -111,14 +108,13 @@ fn handle_discovery(
 	let mut iterator = CustomIterator::create(&data[..]);
 	let request = custom_unwrap_result_or_else!(Discovery::parse(&mut iterator), (|message| {
 		println!("Error while parsing the clients Discovery packet: {}", message);
-		return;
 	}));
 	
 	//Answer:
 	
 	let mut result_buffer = Vec::new();
 	let response = DiscoveryResponse::simple(
-		request.request_uid.clone(),
+		request.request_uid,
 		420,
 		false,
 		false,

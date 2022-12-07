@@ -64,16 +64,13 @@ impl MessageType {
 	}
 	
 	pub const fn is_system(message_type: &MessageType) -> bool {
-		match message_type {
-			Unconnected
+		!matches!(message_type, Unconnected
 			| UserUnreliable
 			| UserSequenced(_)
 			| UserReliableUnordered
 			| UserReliableSequenced(_)
 			| UserReliableOrdered(_)
-			| Unused(_) => false,
-			_ => true,
-		}
+			| Unused(_))
 	}
 	
 	pub fn to_index(&self) -> u8 {

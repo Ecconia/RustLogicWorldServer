@@ -103,23 +103,23 @@ pub fn read_array_auto(iterator: &mut CustomIterator) -> Result<u32, String> {
 
 fn read_string_len(iterator: &mut CustomIterator, length: usize) -> Result<String, String> {
 	let bytes = iterator.read_bytes(length).forward_error("Could not read MP string bytes, because ran out of bytes")?;
-	Ok(String::from_utf8(bytes).forward_error("While converting bytes to fixed length string")?)
+	String::from_utf8(bytes).forward_error("While converting bytes to fixed length string")
 }
 
 pub fn read_string_flex(iterator: &mut CustomIterator) -> Result<String, String> {
 	let next = iterator.next().forward_error("Could not read MP flex string, because ran out of bytes")?;
 	let length = ((next as u32) - 0xA0) as usize;
-	Ok(read_string_len(iterator, length).forward_error("While reading a flex string")?)
+	read_string_len(iterator, length).forward_error("While reading a flex string")
 }
 
 pub fn read_string_8(iterator: &mut CustomIterator) -> Result<String, String> {
 	let length = read_int_8(iterator).forward_error("While reading an 8 bit string prefix")? as usize;
-	return read_string_len(iterator, length);
+	read_string_len(iterator, length)
 }
 
 pub fn read_string_16(iterator: &mut CustomIterator) -> Result<String, String> {
 	let length = read_int_16(iterator).forward_error("While reading a 16 bit string prefix")? as usize;
-	return read_string_len(iterator, length);
+	read_string_len(iterator, length)
 }
 
 pub fn read_string_auto(iterator: &mut CustomIterator) -> Result<Option<String>, String> {
@@ -160,22 +160,22 @@ pub fn read_bool_auto(iterator: &mut CustomIterator) -> Result<bool, String> {
 //Binary:
 
 pub fn read_binary_len(iterator: &mut CustomIterator, length: usize) -> Result<Vec<u8>, String> {
-	return iterator.read_bytes(length).forward_error("Could not read MP binary bytes, because ran out of bytes")
+	iterator.read_bytes(length).forward_error("Could not read MP binary bytes, because ran out of bytes")
 }
 
 pub fn read_binary_8(iterator: &mut CustomIterator) -> Result<Vec<u8>, String> {
 	let length = read_int_8(iterator).forward_error("While reading an 8 bit binary length prefix")? as usize;
-	return read_binary_len(iterator, length);
+	read_binary_len(iterator, length)
 }
 
 pub fn read_binary_16(iterator: &mut CustomIterator) -> Result<Vec<u8>, String> {
 	let length = read_int_16(iterator).forward_error("While reading a 16 bit binary length prefix")? as usize;
-	return read_binary_len(iterator, length);
+	read_binary_len(iterator, length)
 }
 
 pub fn read_binary_32(iterator: &mut CustomIterator) -> Result<Vec<u8>, String> {
 	let length = read_int_32(iterator).forward_error("While reading a 32 bit binary length prefix")? as usize;
-	return read_binary_len(iterator, length);
+	read_binary_len(iterator, length)
 }
 
 pub fn read_binary_auto(iterator: &mut CustomIterator) -> Result<Option<Vec<u8>>, String> {
