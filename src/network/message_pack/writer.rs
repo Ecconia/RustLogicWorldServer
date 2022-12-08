@@ -33,6 +33,17 @@ pub fn write_int_auto(buffer: &mut Vec<u8>, value: u32) {
 	};
 }
 
+//Floats:
+
+pub fn write_float_auto(buffer: &mut Vec<u8>, value: f32) {
+	buffer.push(0xCA);
+	let float_as_bits = value as u32;
+	buffer.push((float_as_bits >> 24) as u8);
+	buffer.push((float_as_bits >> 16) as u8);
+	buffer.push((float_as_bits >> 8) as u8);
+	buffer.push(float_as_bits as u8);
+}
+
 //Strings:
 
 pub fn write_string_flex(buffer: &mut Vec<u8>, value: &str) {
@@ -95,6 +106,10 @@ pub fn write_bool(buffer: &mut Vec<u8>, value: bool) {
 	} else {
 		buffer.push(0xC2);
 	}
+}
+
+pub fn write_bool_auto(buffer: &mut Vec<u8>, value: bool) {
+	write_bool(buffer, value);
 }
 
 //Map:

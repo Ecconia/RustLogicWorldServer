@@ -12,6 +12,7 @@ pub mod network {
 		
 		pub mod s2c {
 			pub mod discovery_response;
+			pub mod world_initialization_packet;
 		}
 	}
 }
@@ -22,6 +23,10 @@ pub mod lidgren {
 	}
 	
 	pub mod channel_handler {
+		pub mod reliable_ordered;
+	}
+	
+	pub mod channel_sender {
 		pub mod reliable_ordered;
 	}
 	

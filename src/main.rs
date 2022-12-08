@@ -15,6 +15,7 @@ use network::packets::c2s::connect::Connect;
 use network::message_pack::reader as mp_reader;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
+use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
 
 fn main() {
@@ -49,7 +50,7 @@ fn main() {
 					}
 					DataType::Data => {
 						println!("=> Data!");
-						handle_user_packet(&server, user_packet.remote_address, user_packet.data);
+						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data);
 					}
 				}
 			}
@@ -64,8 +65,8 @@ fn main() {
 }
 
 fn handle_user_packet(
-	_server: &ServerInstance,
-	_address: SocketAddr,
+	server: &mut ServerInstance,
+	address: SocketAddr,
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
@@ -97,6 +98,14 @@ fn handle_user_packet(
 		}
 		
 		//TODO: Respond with the world packet...
+		
+		let world_initialization_packet = WorldInitializationPacket::simple();
+		
+		let mut packet_buffer = Vec::new();
+		world_initialization_packet.write(&mut packet_buffer);
+		println!("The packet about to be sent is {} bytes long", packet_buffer.len());
+		
+		server.send_to(address, packet_buffer);
 	}
 }
 

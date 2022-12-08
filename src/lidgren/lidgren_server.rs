@@ -69,6 +69,25 @@ impl ServerInstance {
 			self.time_cleanup = self.time_cleanup.add(duration_between_cleanups);
 		}
 		
+		//Send messages:
+		let mut send_buffer = Vec::new();
+		for client in self.user_map.values_mut() {
+			client.send_messages(&mut send_buffer);
+		}
+		for (address, data) in send_buffer {
+			println!(">> Actually sending {} bytes", &data.len());
+			match self.socket.send_to(&data, address) {
+				Ok(number_bytes) => {
+					if number_bytes != data.len() {
+						println!("ERROR: Failed to send right amount of bytes via socket {} / {}", number_bytes, data.len());
+					}
+				}
+				Err(e) => {
+					panic!("Unexpected error while sending via socket {:?}", e);
+				}
+			}
+		}
+		
 		let start = Instant::now();
 		let max_read_duration = Duration::from_millis(100);
 		//Read packets until at max 100ms have passed, then the rest of the program should continue (to consume the new packets).
@@ -84,6 +103,13 @@ impl ServerInstance {
 				}
 			}
 		}
+	}
+	
+	pub fn send_to(&mut self, address: SocketAddr, data: Vec<u8>) {
+		let connected_client = self.user_map.get_mut(&address).unwrap_or_else(|| {
+			panic!("The user, which this packet was about to be sent to, does not exist... Highly suspicious.");
+		});
+		connected_client.send_to(data);
 	}
 	
 	pub fn process_packet(&mut self, amount_read: usize, remote_address: SocketAddr) {
@@ -142,7 +168,7 @@ impl ServerInstance {
 						self.new_data_packets.push(DataPacket {
 							data_type: DataType::Connect,
 							remote_address,
-							data: message_data_iterator.consume()
+							data: message_data_iterator.consume(),
 						});
 					}
 					MessageType::Discovery => {
@@ -150,7 +176,7 @@ impl ServerInstance {
 						self.new_data_packets.push(DataPacket {
 							data_type: DataType::Discovery,
 							remote_address,
-							data: message_data_iterator.consume()
+							data: message_data_iterator.consume(),
 						});
 					}
 					MessageType::ConnectionEstablished => {
@@ -163,7 +189,7 @@ impl ServerInstance {
 						}));
 						println!("Remote time: {}", remote_time);
 						//Register user:
-						self.user_map.insert(remote_address.clone(), ConnectedClient::new(remote_address.clone()));
+						self.user_map.insert(remote_address, ConnectedClient::new(remote_address.clone()));
 						return; //Nothing to do actually...
 					}
 					MessageType::Ping => {
@@ -196,6 +222,58 @@ impl ServerInstance {
 							println!("{} bytes sent", len);
 						}
 						return; //Done here.
+					}
+					MessageType::Disconnect => {
+						let disconnection_reason = custom_unwrap_result_or_else!(lg_formatter::read_string(&mut message_data_iterator), (|message| {
+							println!("Error while reading disconnect reason:\n -> {}", message);
+						}));
+						println!(">> Client disconnected with reason: '{}'", disconnection_reason);
+						if message_data_iterator.has_more() {
+							println!("Error Disconnect packet had more data to read {}", message_data_iterator.remaining());
+						}
+						//Actually disconnect the client (as in stop sending it data and clean up:
+						//TODO: Maybe improve external disconnection...
+						self.user_map.remove(&remote_address); //Brute force way to get rid of it. Deal with the aftermath later...
+						let mut i = 0;
+						while i < self.new_data_packets.len() {
+							let packet : &DataPacket = self.new_data_packets.get(i).unwrap(); //As per condition above, we are still in bounds.
+							if packet.data_type == DataType::Data && packet.remote_address == remote_address {
+								self.new_data_packets.remove(i);
+							} else {
+								i += 1;
+							}
+						}
+						//TODO: Confirm that removing the packets actually worked...
+						println!("Destroyed user data and (hopefully) purged all incoming packets by it.");
+						//TODO: Let main application know about this (send pseudo packet).
+						return;
+					}
+					MessageType::Acknowledge => {
+						//Get user in question:
+						let connected_client = custom_unwrap_option_or_else!(self.user_map.get_mut(&remote_address), {
+							println!("Warning: Unconnected user sent acknowledge packet - ignoring!");
+							return;
+						});
+						//Parse acknowledge data and forward to channel handler:
+						if message_data_iterator.remaining() % 3 != 0 {
+							println!("Warning: Connected user sent invalid acknowledge packet: Length is invalid {}!", message_data_iterator.remaining());
+							return;
+						}
+						while message_data_iterator.has_more() {
+							//We know, that there will be 3 more bytes available now, proceed with unchecked operations:
+							let raw_id = message_data_iterator.next_unchecked();
+							let message_type = custom_unwrap_option_or_else!(MessageType::from_id(raw_id), {
+								println!("Warning: Connected user sent invalid acknowledge packet: Invalid message type ID {}!", raw_id);
+								return;
+							});
+							let sequence_number = message_data_iterator.next_unchecked() as u16 | ((message_data_iterator.next_unchecked() as u16) << 8);
+							if MessageType::UserReliableOrdered(0) != message_type {
+								println!("Warning: Connected user sent invalid acknowledge packet: Message type, that we most certainly never sent {:?} with sequence number {}!", message_type, sequence_number);
+								continue;
+							}
+							println!("Received acknowledge for sequence ID {}", sequence_number);
+							connected_client.received_acknowledge(sequence_number);
+						}
 					}
 					_ => {
 						//Reject!
@@ -252,7 +330,6 @@ impl ServerInstance {
 		}
 		if iterator.remaining() > 0 {
 			println!("Dropping packet, there had been additional bytes to read that don't fit a message header. Amount {}", iterator.remaining());
-			return;
 		}
 	}
 	

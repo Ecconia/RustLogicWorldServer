@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use crate::lidgren::channel_handler::reliable_ordered::ReliableOrderedHandler;
+use crate::lidgren::channel_sender::reliable_ordered::ReliablyOrderedSender;
 use crate::lidgren::data_structures::MessageHeader;
 use crate::lidgren::data_types::DataType;
 use crate::lidgren::util::formatter as lg_formatter;
@@ -14,6 +15,7 @@ pub struct ConnectedClient {
 	pub remote_address: SocketAddr,
 	pub channel_handler: Option<ReliableOrderedHandler>,
 	fragment_map: HashMap<u32, FragmentData>,
+	channel_sender: ReliablyOrderedSender,
 }
 
 impl ConnectedClient {
@@ -22,7 +24,24 @@ impl ConnectedClient {
 			remote_address,
 			channel_handler: None,
 			fragment_map: HashMap::new(),
+			channel_sender: ReliablyOrderedSender::new(),
 		}
+	}
+	
+	pub fn send_to(&mut self, data: Vec<u8>) {
+		if (data.len() + 5) > 1408 {
+			//TODO: Enqueue fragmented messages...
+			panic!("Packet too big to be sent: ({} + 5) / {}", data.len(), 1408);
+		}
+		self.channel_sender.enqueue_packet(data);
+	}
+	
+	pub fn received_acknowledge(&mut self, sequence_id: u16) {
+		self.channel_sender.received_acknowledge(sequence_id);
+	}
+	
+	pub fn send_messages(&mut self, send_buffer: &mut Vec<(SocketAddr, Vec<u8>)>) {
+		self.channel_sender.send_messages(&self.remote_address, send_buffer);
 	}
 	
 	pub fn heartbeat(&mut self) {

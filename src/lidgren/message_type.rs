@@ -1,6 +1,6 @@
 use MessageType::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MessageType {
 	Unconnected,
 	UserUnreliable,
