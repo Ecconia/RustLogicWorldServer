@@ -1,4 +1,4 @@
-use crate::error_handling::{custom_unwrap_option_or_else, EhResult, exception_wrap, exception};
+use crate::prelude::*;
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
@@ -27,7 +27,7 @@ impl Discovery {
 		}
 		
 		let intention_to_connect = exception_wrap!(mp_reader::read_bool_auto(iterator), "While reading discovery packet bool 'intention to connect'")?;
-		println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", intention_to_connect);
+		log_debug!("Wants to connect: ", intention_to_connect);
 		
 		let key = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet key 'RequestGUID'")?, {
 			return exception!("Discovery packet has second map key not set");
@@ -39,7 +39,7 @@ impl Discovery {
 		let request_uid = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet GUID string")?, {
 			return exception!("Discovery packet has second value not set");
 		});
-		println!("Request UUID is: \x1b[38;2;255;0;150m{}\x1b[m", request_uid);
+		log_debug!("Request UUID is: ", request_uid);
 		
 		Ok(Discovery {
 			request_uid,

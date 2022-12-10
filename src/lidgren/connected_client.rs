@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -9,7 +11,6 @@ use crate::lidgren::data_types::DataType;
 use crate::lidgren::util::formatter as lg_formatter;
 use crate::util::custom_iterator::CustomIterator;
 use crate::lidgren::lidgren_server::DataPacket;
-use crate::error_handling::{unwrap_or_print_return, exception_wrap};
 
 pub struct ConnectedClient {
 	pub remote_address: SocketAddr,
@@ -82,7 +83,7 @@ impl ConnectedClient {
 		//Else we got a fragment to handle, read header:
 		let mut iterator = CustomIterator::create(&data[..]);
 		if iterator.remaining() < 123 {
-			println!("Not enough bytes to read fragment header!");
+			log_warn!("Not enough bytes to read fragment header: ", iterator.remaining(), "/", 122);
 			return;
 		}
 		let fragment_group_id = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_vint_32(&mut iterator), "While reading 'fragment_group_id'"));
@@ -97,7 +98,7 @@ impl ConnectedClient {
 			_total_num_of_chunks += 1;
 		}
 		if fragment_index >= _total_num_of_chunks {
-			println!("Remote sent invalid fragment packet, index of fragment bigger than fragment count: {} / {}", fragment_index, _total_num_of_chunks);
+			log_warn!("Remote sent invalid fragment packet, index of fragment bigger than fragment count: ", fragment_index, " / ", _total_num_of_chunks);
 			return;
 		}
 		
@@ -106,18 +107,17 @@ impl ConnectedClient {
 				let fragment_data = e.into_mut();
 				fragment_data.last_accessed_time = Instant::now(); //Update last touch time, to properly get rid of it.
 				if _total_num_of_chunks != fragment_data.announced_chunk_count {
-					println!("Remote sent invalid fragment packet, new fragment chunk count {} does not match original {}", _total_num_of_chunks, fragment_data.announced_chunk_count);
+					log_warn!("Remote sent invalid fragment packet, new fragment chunk count ", _total_num_of_chunks, " does not match original ", fragment_data.announced_chunk_count);
 					return;
 				}
 				if fragment_bits != fragment_data.announced_chunk_bits {
-					println!("Remote sent invalid fragment packet, new fragment chunk bit size {} does not match original {}", fragment_bits, fragment_data.announced_chunk_bits);
+					log_warn!("Remote sent invalid fragment packet, new fragment chunk bit size ", fragment_bits, " does not match original ", fragment_data.announced_chunk_bits);
 					return;
 				}
 				fragment_data
 			}
 			Entry::Vacant(e) => {
-				println!("[Fragment] Received new fragment {} with {} chunks each {} bytes ({} bits).",
-				         fragment_group_id, _total_num_of_chunks, fragment_chunk_size, fragment_bits);
+				log_debug!("[Fragment] Received new fragment ", fragment_group_id, " with ", _total_num_of_chunks, " chunks each ", fragment_chunk_size, " bytes (", fragment_bits, " bits).");
 				
 				let fragment_data = FragmentData {
 					last_accessed_time: Instant::now(),
@@ -131,10 +131,9 @@ impl ConnectedClient {
 			}
 		};
 		
-		println!("[Fragment] Got new fragment {} with index {} / {}",
-		         fragment_group_id, fragment_index, _total_num_of_chunks);
+		log_debug!("[Fragment] Got new fragment ", fragment_group_id, " with index ", fragment_index, " / ", _total_num_of_chunks);
 		if fragment_data.chunk_checklist[fragment_index as usize] {
-			println!("[Fragment] -> already received!");
+			log_debug!("[Fragment] -> already received!");
 		} else {
 			fragment_data.chunk_checklist[fragment_index as usize] = true;
 			fragment_data.chunk_amount += 1;
@@ -145,25 +144,21 @@ impl ConnectedClient {
 			if remaining > fragment_chunk_size as usize {
 				//Illegal size, might blow the buffer!
 				//TODO: Disconnect this malicious client!
-				println!("[Fragment] DANGER: Fragment does have a size bigger than the chunk size {} / {}",
-				         remaining, _total_bytes);
+				log_warn!("[Fragment] DANGER: Fragment does have a size bigger than the chunk size ", remaining, " / ", _total_bytes);
 				return;
 			}
 			if fragment_index == _total_num_of_chunks - 1 {
 				let expected = _total_bytes % fragment_chunk_size;
 				if remaining < expected as usize {
-					println!("[Fragment] WARNING: Fragment does not have expected size {} / {}",
-					         remaining, expected);
+					log_warn!("[Fragment] WARNING: Fragment does not have expected size ", remaining, " / ", expected);
 				} else if remaining > expected as usize {
 					//TODO: Disconnect dangerous client!
-					println!("[Fragment] DANGER: Last Fragment is too big {} / {}",
-					         remaining, expected);
+					log_warn!("[Fragment] DANGER: Last Fragment is too big ", remaining, " / ", expected);
 					return;
 				}
 			} else {
 				if remaining != fragment_chunk_size as usize {
-					println!("[Fragment] WARNING: Fragment does not have expected size {} / {}",
-					         remaining, fragment_chunk_size);
+					log_warn!("[Fragment] WARNING: Fragment does not have expected size ", remaining, " / ", fragment_chunk_size);
 				}
 			}
 			let remaining_bytes = iterator.consume();
@@ -188,10 +183,10 @@ impl ConnectedClient {
 			let elapsed = data.last_accessed_time.elapsed();
 			if elapsed.ge(&max_time) {
 				if data.is_complete() {
-					println!("Removing completed fragment group '{}' as it is older than 10 seconds. In fact: {}", group, elapsed.as_millis());
+					log_debug!("Removing completed fragment group '", group, "' as it is older than 10 seconds. In fact: ", elapsed.as_millis());
 				} else {
 					//TODO: Kick the connection!
-					println!("Removing UNFINISHED! fragment group '{}' as it is older than 10 seconds. In fact: {}", group, elapsed.as_millis());
+					log_warn!("Removing UNFINISHED! fragment group '", group, "' as it is older than 10 seconds. In fact: ", elapsed.as_millis());
 				}
 				to_remove_keys.push(*group);
 			}

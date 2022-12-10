@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
@@ -34,7 +36,7 @@ impl ReliablyOrderedSender {
 	}
 	
 	pub fn enqueue_packet(&mut self, data: Vec<u8>) {
-		println!("Enqueued packet with {} bytes", data.len());
+		log_debug!("Enqueued packet with ", data.len(), " bytes");
 		self.packet_queue.push_back(data);
 	}
 	
@@ -51,7 +53,7 @@ impl ReliablyOrderedSender {
 		//Queue more message if room for them:
 		let mut space_to_fill = self.get_free_buffer_slots();
 		while space_to_fill > 0 && !self.packet_queue.is_empty() {
-			println!("+++ Got packet to send! ++++++++++++++++");
+			log_debug!("+++ Got packet to send! ++++++++++++++++");
 			//Bytes to send:
 			let data = self.packet_queue.pop_front().unwrap(); //There should be no reason for this to be 'None' as it is not empty.
 			
@@ -65,7 +67,7 @@ impl ReliablyOrderedSender {
 				panic!("'Free' buffer position was not free!");
 			}
 			
-			println!("Packet is {} bytes", data.len());
+			log_debug!("Packet is ", data.len(), " bytes");
 			let mut packet_bytes = Vec::with_capacity(5 + data.len());
 			packet_bytes.push(MessageType::UserReliableOrdered(0).to_index());
 			packet_bytes.push((sequence_number << 1) as u8); //TODO: Add fragment information here - where constructing the message...
@@ -74,7 +76,7 @@ impl ReliablyOrderedSender {
 			packet_bytes.push(length as u8);
 			packet_bytes.push((length >> 8) as u8);
 			packet_bytes.extend(data);
-			println!("Yielding in {} bytes", packet_bytes.len());
+			log_debug!("Yielding in ", packet_bytes.len(), " bytes");
 			
 			send_buffer.push((*address, packet_bytes[..].to_vec())); //Copy before storing it, else overhead starts...
 			self.message_buffer[buffer_index] = Some(EnqueuedMessage {
@@ -101,7 +103,7 @@ impl ReliablyOrderedSender {
 			//Acknowledge happens in time, oldest message got confirmed!
 			let mut buffered_index = self.buffer_oldest as usize % WINDOW_SIZE;
 			if self.message_buffer[buffered_index].is_none() {
-				println!("The client sent an acknowledge packet for the current head of packets, yet there was no packet in the buffer - the acknowledge packet came unexpected.");
+				log_warn!("The client sent an acknowledge packet for the current head of packets, yet there was no packet in the buffer - the acknowledge packet came unexpected.");
 				return;
 			}
 			
@@ -128,7 +130,7 @@ impl ReliablyOrderedSender {
 				packet.acknowledged = true;
 			}
 		} else {
-			println!("Warning: Received acknowledge too early...");
+			log_warn!("Warning: Received acknowledge too early...");
 		}
 	}
 	

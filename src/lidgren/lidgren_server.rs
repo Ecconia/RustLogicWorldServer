@@ -1,10 +1,10 @@
+use crate::prelude::*;
+
 use std::collections::HashMap;
 use std::io::ErrorKind::WouldBlock;
 use std::net::{SocketAddr, UdpSocket};
 use std::ops::Add;
 use std::time::{Duration, Instant};
-
-use crate::error_handling::{custom_unwrap_option_or_else, unwrap_or_print_return, EhResult, exception_from, exception_wrap};
 
 use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
 use crate::util::custom_iterator::CustomIterator;
@@ -75,11 +75,11 @@ impl ServerInstance {
 			client.send_messages(&mut send_buffer);
 		}
 		for (address, data) in send_buffer {
-			println!(">> Actually sending {} bytes", &data.len());
+			log_debug!(">> Actually sending ", &data.len(), " bytes");
 			match self.socket.send_to(&data, address) {
 				Ok(number_bytes) => {
 					if number_bytes != data.len() {
-						println!("ERROR: Failed to send right amount of bytes via socket {} / {}", number_bytes, data.len());
+						log_error!("ERROR: Failed to send right amount of bytes via socket ", number_bytes, " / ", data.len());
 					}
 				}
 				Err(e) => {
@@ -97,7 +97,7 @@ impl ServerInstance {
 				Err(err) if err.kind() == WouldBlock => {
 					break; //Nothing to read right now, so just stop attempting for now.
 				}
-				Err(err) => println!("Error while reading from socket: {:?}", err),
+				Err(err) => log_error!("Error while reading from socket: ", format!("{:?}", err)),
 				Ok((amount_read, remote_address)) => {
 					self.process_packet(amount_read, remote_address);
 				}
@@ -113,14 +113,12 @@ impl ServerInstance {
 	}
 	
 	pub fn process_packet(&mut self, amount_read: usize, remote_address: SocketAddr) {
-		println!("====================================");
-		println!("Received UDP packet from \x1b[38;2;255;0;150m{}\x1b[m port \x1b[38;2;255;0;150m{}\x1b[m size \x1b[38;2;255;0;150m{}\x1b[m",
-		         remote_address.ip(), remote_address.port(), amount_read
-		);
+		log_debug!("====================================");
+		log_debug!("Received UDP packet from ", remote_address.ip(), " port ", remote_address.port(), " size ", amount_read);
 		
 		if amount_read < MESSAGE_HEADER_LENGTH {
 			//Drop packet, it cannot even hold a single Lidgren message header.
-			println!("Dropping packet, message header won't fit inside.");
+			log_warn!("Dropping packet, message header won't fit inside.");
 			return;
 		}
 		
@@ -128,17 +126,15 @@ impl ServerInstance {
 		
 		while iterator.remaining() >= MESSAGE_HEADER_LENGTH {
 			let header = unwrap_or_print_return!(exception_wrap!(MessageHeader::from_stream(&mut iterator), "While constructing lidgren header"));
-			println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
-			         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
-			);
+			log_debug!("Type: ", format!("{:x?}", header.message_type), " Fragment: ", header.fragment, " Sequence#: ", header.sequence_number, " Bits: ", header.bits, " Bytes: ", header.bytes);
 			
 			if (iterator.remaining() as u16) < header.bytes {
-				println!("Message header declared payload size bigger than rest of packet: {}/{}", header.bytes, iterator.remaining());
+				log_warn!("Message header declared payload size bigger than rest of packet: ", header.bytes, "/", iterator.remaining());
 				return;
 			}
 			
 			if let MessageType::Unused(_) = header.message_type {
-				println!("Received Unused/Reserved message type. Stopping parsing.");
+				log_warn!("Received Unused/Reserved message type. Stopping parsing.");
 				return;
 			}
 			
@@ -150,13 +146,13 @@ impl ServerInstance {
 					MessageType::Connect => {
 						let app_id = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut message_data_iterator), "While reading app id, in connect message"));
 						if self.application_name.ne(&app_id) {
-							println!("Remote {}:{} sent wrong application identifier name '{}'.", remote_address.ip(), remote_address.port(), app_id);
+							log_warn!("Remote ", remote_address.ip(), ":", remote_address.port(), " sent wrong application identifier name '", app_id, "'.");
 							return;
 						}
 						//TODO: Actually somehow use the ID? Only useful if routers actually do funky stuff...
 						let _remote_id = lg_formatter::read_int_64(&mut message_data_iterator);
 						let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut message_data_iterator), "While reading the remote time"));
-						println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
+						log_debug!("Remote time: ", remote_time);
 						self.new_data_packets.push(DataPacket {
 							data_type: DataType::Connect,
 							remote_address,
@@ -173,22 +169,22 @@ impl ServerInstance {
 					}
 					MessageType::ConnectionEstablished => {
 						if message_data_iterator.remaining() != 4 {
-							println!("Remote {}:{} sent invalid connection established message, expected exactly 4 bytes, got {}.", remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
+							log_warn!("Remote ", remote_address.ip(), ":", remote_address.port(), " sent invalid connection established message, expected exactly 4 bytes, got ", message_data_iterator.remaining());
 							return;
 						}
 						let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut message_data_iterator), "While reading the remote time"));
-						println!("Remote time: {}", remote_time);
+						log_debug!("Remote time: ", remote_time);
 						//Register user:
 						self.user_map.insert(remote_address, ConnectedClient::new(remote_address.clone()));
 						return; //Nothing to do actually...
 					}
 					MessageType::Ping => {
 						if message_data_iterator.remaining() != 1 {
-							println!("Remote {}:{} sent invalid ping message, expected exactly 1 byte, got {}.", remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
+							log_warn!("Remote ", remote_address.ip(), ":", remote_address.port(), " sent invalid ping message, expected exactly 1 byte, got ", message_data_iterator.remaining());
 							return;
 						}
 						let ping_number = message_data_iterator.next_unchecked();
-						println!("Ping packet: {}", ping_number);
+						log_debug!("Ping packet: ", ping_number);
 						//Respond:
 						{
 							let mut result_buffer = Vec::with_capacity(5 + 1 + 4);
@@ -201,7 +197,7 @@ impl ServerInstance {
 							//Data:
 							result_buffer.push(ping_number);
 							let elapsed_time = self.time_run_duration.elapsed().as_millis() as f32 / 1000.0;
-							println!("Time passed: {}", elapsed_time);
+							log_debug!("Time passed: ", elapsed_time);
 							lg_formatter::write_float(&mut result_buffer, elapsed_time);
 							
 							let size = (result_buffer.len() - 5) * 8;
@@ -209,16 +205,16 @@ impl ServerInstance {
 							result_buffer[4] = (size >> 8) as u8;
 							
 							let len = self.send(&result_buffer, &remote_address);
-							println!("{} bytes sent", len);
+							log_debug!("", len, " bytes sent");
 						}
 						return; //Done here.
 					}
 					MessageType::Disconnect => {
 						//TODO: First disconnect, then attempt to parse the disconnect reason!
 						let disconnection_reason = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut message_data_iterator), "While reading disconnect reason"));
-						println!(">> Client disconnected with reason: '{}'", disconnection_reason);
+						log_warn!(">> Client disconnected with reason: '", disconnection_reason, "'");
 						if message_data_iterator.has_more() {
-							println!("Warning Disconnect packet had more data to read {}", message_data_iterator.remaining());
+							log_warn!("Warning Disconnect packet had more data to read: ", message_data_iterator.remaining(), " bytes");
 						}
 						//Actually disconnect the client (as in stop sending it data and clean up:
 						//TODO: Maybe improve external disconnection...
@@ -233,41 +229,40 @@ impl ServerInstance {
 							}
 						}
 						//TODO: Confirm that removing the packets actually worked...
-						println!("Destroyed user data and (hopefully) purged all incoming packets by it.");
+						log_debug!("Destroyed user data and (hopefully) purged all incoming packets by it.");
 						//TODO: Let main application know about this (send pseudo packet).
 						return;
 					}
 					MessageType::Acknowledge => {
 						//Get user in question:
 						let connected_client = custom_unwrap_option_or_else!(self.user_map.get_mut(&remote_address), {
-							println!("Warning: Unconnected user sent acknowledge packet - ignoring!");
+							log_warn!("Warning: Unconnected user sent acknowledge packet - ignoring!");
 							return;
 						});
 						//Parse acknowledge data and forward to channel handler:
 						if message_data_iterator.remaining() % 3 != 0 {
-							println!("Warning: Connected user sent invalid acknowledge packet: Length is invalid {}!", message_data_iterator.remaining());
+							log_warn!("Warning: Connected user sent invalid acknowledge packet: Length is invalid ", message_data_iterator.remaining());
 							return;
 						}
 						while message_data_iterator.has_more() {
 							//We know, that there will be 3 more bytes available now, proceed with unchecked operations:
 							let raw_id = message_data_iterator.next_unchecked();
 							let message_type = custom_unwrap_option_or_else!(MessageType::from_id(raw_id), {
-								println!("Warning: Connected user sent invalid acknowledge packet: Invalid message type ID {}!", raw_id);
+								log_warn!("Warning: Connected user sent invalid acknowledge packet: Invalid message type id ", raw_id);
 								return;
 							});
 							let sequence_number = message_data_iterator.next_unchecked() as u16 | ((message_data_iterator.next_unchecked() as u16) << 8);
 							if MessageType::UserReliableOrdered(0) != message_type {
-								println!("Warning: Connected user sent invalid acknowledge packet: Message type, that we most certainly never sent {:?} with sequence number {}!", message_type, sequence_number);
+								log_warn!("Warning: Connected user sent invalid acknowledge packet: Message type, that we most certainly never sent ", format!("{:?}", message_type), " with sequence number ", sequence_number);
 								continue;
 							}
-							println!("Received acknowledge for sequence ID {}", sequence_number);
+							log_debug!("Received acknowledge for sequence id ", sequence_number);
 							connected_client.received_acknowledge(sequence_number);
 						}
 					}
 					_ => {
 						//Reject!
-						println!("Rejecting message type {:?} from {}:{} remaining bytes {}",
-						         header.message_type, remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
+						log_warn!("Rejecting message type ", format!("{:?}", header.message_type), " from ", remote_address.ip(), ":", remote_address.port(), " remaining bytes ", message_data_iterator.remaining());
 						return;
 					}
 				}
@@ -291,16 +286,16 @@ impl ServerInstance {
 							result_buffer.push((header.sequence_number >> 8) as u8);
 							
 							let len = self.send(&result_buffer, &remote_address);
-							println!("{} bytes sent", len);
+							log_debug!("", len, " bytes sent");
 						}
 						//Handle:
 						if channel != 0 {
-							println!("Cannot handle anything but channel 0 yet!");
+							log_warn!("Cannot handle anything but channel 0 yet!");
 							return;
 						}
 						let connected_client = self.user_map.get_mut(&remote_address);
 						let connected_client = custom_unwrap_option_or_else!(connected_client, {
-							println!("Client sent user-message, while not being connected!");
+							log_warn!("Client sent user-message, while not being connected!");
 							return;
 						});
 						connected_client.handle_new_message(
@@ -311,14 +306,14 @@ impl ServerInstance {
 						);
 					}
 					_ => {
-						println!("Unexpected/Unimplemented message type!");
+						log_warn!("Unexpected/Unimplemented message type!");
 						return;
 					}
 				};
 			}
 		}
 		if iterator.remaining() > 0 {
-			println!("Dropping packet, there had been additional bytes to read that don't fit a message header. Amount {}", iterator.remaining());
+			log_warn!("Dropping packet, there had been additional bytes to read that don't fit a message header. Amount ", iterator.remaining());
 		}
 	}
 	
@@ -333,7 +328,7 @@ impl ServerInstance {
 		lg_formatter::write_string(&mut result_buffer, &self.application_name);
 		lg_formatter::write_int_64(&mut result_buffer, self.server_unique_id);
 		let elapsed_time = self.time_run_duration.elapsed().as_millis() as f32 / 1000.0;
-		println!("Time passed: {}", elapsed_time);
+		log_debug!("Time passed: ", elapsed_time);
 		lg_formatter::write_float(&mut result_buffer, elapsed_time);
 		
 		let size = (result_buffer.len() - 5) * 8;
@@ -341,7 +336,7 @@ impl ServerInstance {
 		result_buffer[4] = (size >> 8) as u8;
 		
 		let len = self.send(&result_buffer, remote_address);
-		println!("{} bytes sent", len);
+		log_debug!("", len, " bytes sent");
 	}
 	
 	pub fn answer_discovery(&self, remote_address: &SocketAddr, discovery_payload: &[u8]) {
@@ -358,7 +353,7 @@ impl ServerInstance {
 		result_buffer.extend_from_slice(discovery_payload);
 		
 		let len = self.socket.send_to(&result_buffer, remote_address).unwrap();
-		println!("{} bytes sent", len);
+		log_debug!("", len, " bytes sent");
 	}
 	
 	pub fn send(&self, buffer: &Vec<u8>, address: &SocketAddr) -> usize {

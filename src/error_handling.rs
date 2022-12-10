@@ -109,7 +109,7 @@ impl<T> ResultExceptionDetailsExt<T> for EhResult<T> {
 			Ok(val) => Ok(val),
 			Err(mut err) => {
 				err.messages.push(format!(concat!(
-					crate::util::ansi_constants::ansi_rgb!(80,140,255),
+					crate::util::log_formatter::color_meta!(),
 					" -> ",
 					crate::util::log_formatter::color_error_normal!(),
 					"{}",
@@ -126,9 +126,9 @@ impl<T> ResultExceptionDetailsExt<T> for EhResult<T> {
 			Ok(val) => Ok(val),
 			Err(mut err) => {
 				err.messages.push(format!(concat!(
-					crate::util::ansi_constants::ansi_rgb!(80,140,255),
+					crate::util::log_formatter::color_meta!(),
 					" -> {}",
-					crate::util::ansi_constants::ansi_rgb!(80,140,255),
+					crate::util::log_formatter::color_meta!(),
 					" @ {} | {}:{}",
 					crate::util::ansi_constants::ansi_reset!(),
 				), while_doing_what, file_location, file_line, file_column));

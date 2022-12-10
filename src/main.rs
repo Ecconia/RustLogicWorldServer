@@ -1,3 +1,5 @@
+use rust_potato_server::prelude::*;
+
 use std::net::SocketAddr;
 use std::ops::Sub;
 use std::thread::sleep;
@@ -17,8 +19,6 @@ use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
-
-use util::log_formatter::{log_info, log_warn, log_error};
 
 fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
@@ -40,18 +40,18 @@ fn main() {
 			//Swap the packets to process list, so that they can be processed, without blocking the server.
 			packets_to_process = std::mem::replace(&mut server.new_data_packets, packets_to_process);
 			for user_packet in packets_to_process.drain(..) {
-				println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+				log_debug!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 				match user_packet.data_type {
 					DataType::Discovery => {
-						println!("=> Discovery!");
+						log_debug!("=> Discovery!");
 						handle_discovery(&server, user_packet.remote_address, user_packet.data);
 					}
 					DataType::Connect => {
-						println!("=> Connect!");
+						log_debug!("=> Connect!");
 						handle_connect(&server, user_packet.remote_address, user_packet.data);
 					}
 					DataType::Data => {
-						println!("=> Data!");
+						log_debug!("=> Data!");
 						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data);
 					}
 				}
@@ -99,7 +99,7 @@ fn handle_user_packet(
 		
 		let mut packet_buffer = Vec::new();
 		world_initialization_packet.write(&mut packet_buffer);
-		println!("The packet about to be sent is {} bytes long", packet_buffer.len());
+		log_debug!("The packet about to be sent is ", packet_buffer.len(), " bytes long");
 		
 		server.send_to(address, packet_buffer);
 	} else {

@@ -1,4 +1,4 @@
-use crate::error_handling::{custom_unwrap_option_or_else, EhResult, exception_wrap, exception};
+use crate::prelude::*;
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
@@ -26,13 +26,13 @@ impl Connect {
 		}
 		
 		let mod_count = exception_wrap!(mp_reader::read_array_auto(iterator), "While reading connect packet mod count")?;
-		println!("Mod count: {}", mod_count);
+		log_debug!("Mod count: ", mod_count);
 		let mut mods = Vec::new();
 		for _ in 0..mod_count {
 			let mod_id = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet mod entry")?, {
 				return exception!("Connect packet has a mod name not set");
 			});
-			println!(" - {}", mod_id);
+			log_debug!(" - ", mod_id);
 			mods.push(mod_id);
 		}
 		
@@ -43,7 +43,7 @@ impl Connect {
 		let username = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet username")?, {
 			return exception!("Connect packet has username not set");
 		});
-		println!("Username: {}", username);
+		log_debug!("Username: ", username);
 		
 		let version = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet client version")?, {
 			return exception!("Connect packet has version not set");
@@ -51,10 +51,10 @@ impl Connect {
 		let password_hash = exception_wrap!(mp_reader::read_binary_auto(iterator), "While reading connect packet password hash")?;
 		let hail_payload = exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet hail payload")?;
 		let hail_signature = exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet hail signature")?;
-		println!("Version: {}", version);
-		println!("PWHash: {:x?}", password_hash);
-		println!("HailPayload: {:?}", hail_payload);
-		println!("HailSignature: {:?}", hail_signature);
+		log_debug!("Version: ", version);
+		log_debug!("PWHash: ", format!("{:x?}", password_hash));
+		log_debug!("HailPayload: ", format!("{:?}", hail_payload));
+		log_debug!("HailSignature: ", format!("{:?}", hail_signature));
 		
 		Ok(Connect {
 			username,

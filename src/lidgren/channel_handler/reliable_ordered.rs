@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 use crate::lidgren::data_structures::MessageHeader;
 use crate::util::custom_iterator::CustomIterator;
 
@@ -63,7 +65,7 @@ impl ReliableOrderedHandler {
 			//The only way to gracefully handle this, is by not sending the acknowledge packet and receive
 			// this packet until it is relevant to be received.
 			//The only alternative is to acknowledge it anyway, and wait for this connection to deadlock and time out the remote side...
-			println!("Major issue, received message way too early, it won't fit the buffer. This connection is ruined!");
+			log_warn!("Major issue, received message way too early, it won't fit the buffer. This connection is ruined!");
 			return;
 		}
 		
@@ -73,7 +75,7 @@ impl ReliableOrderedHandler {
 		
 		let index = header.sequence_number as usize % WINDOW_SIZE;
 		if let Some(old_message) = &self.cycle_buffer[index] {
-			println!("UNEXPECTED UNUSED MESSAGE ON CYCLE BUFFER! {:x?}", old_message.header);
+			log_error!("UNEXPECTED UNUSED MESSAGE ON CYCLE BUFFER: ", format!("{:x?}", old_message.header));
 		}
 		self.cycle_buffer[index] = Some(InternalMessage {
 			header,
