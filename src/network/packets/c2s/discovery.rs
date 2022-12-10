@@ -1,4 +1,4 @@
-use crate::error_handling::{custom_unwrap_option_or_else, ResultErrorExt};
+use crate::error_handling::{custom_unwrap_option_or_else, EhResult, exception_wrap, exception};
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
@@ -9,35 +9,35 @@ pub struct Discovery {
 }
 
 impl Discovery {
-	pub fn parse(iterator: &mut CustomIterator) -> Result<Discovery, String> {
-		let packet_id = mp_reader::read_int_auto(iterator).forward_error("While reading discovery packet ID")?;
+	pub fn parse(iterator: &mut CustomIterator) -> EhResult<Discovery> {
+		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading discovery packet id")?;
 		if packet_id != 10 {
-			return Err(format!("Discovery had wrong data packet ID type: {}", packet_id));
+			return exception!("Discovery packet has wrong packet id: ", packet_id);
 		}
-		let map_size = mp_reader::read_map_auto(iterator).forward_error("While reading discovery packet entry map count")?;
+		let map_size = exception_wrap!(mp_reader::read_map_auto(iterator), "While reading discovery packet entry map count")?;
 		if map_size != 2 {
-			return Err(format!("While parsing discovery packet, expected map of size 2, but got {}", map_size));
+			return exception!("Discovery packet has wrong map size: ", map_size, " (should be ", 2, ")");
 		}
 		//Intention to connect:
-		let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet key 'ForConnection'")?, {
-			return Err("While parsing discovery packet, expected first map key to be present, but got null.".to_string());
+		let key = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet key 'ForConnection'")?, {
+			return exception!("Discovery packet has first map key not set");
 		});
 		if String::from("ForConnection").ne(&key) {
-			return Err(format!("While parsing discovery packet, expected first map key to be 'ForConnection', but got '{}'.", key));
+			return exception!("Discovery packet has wrong first map key: ", key, " (should be ", "ForConnection", ")");
 		}
 		
-		let intention_to_connect = mp_reader::read_bool_auto(iterator).forward_error("While reading discovery packet bool 'intention to connect'")?;
+		let intention_to_connect = exception_wrap!(mp_reader::read_bool_auto(iterator), "While reading discovery packet bool 'intention to connect'")?;
 		println!("Wants to connect: \x1b[38;2;255;0;150m{}\x1b[m", intention_to_connect);
 		
-		let key = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet key 'RequestGUID'")?, {
-			return Err("While parsing discovery packet, expected first map key to be present, but got null.".to_string());
+		let key = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet key 'RequestGUID'")?, {
+			return exception!("Discovery packet has second map key not set");
 		});
 		if String::from("RequestGUID").ne(&key) {
-			return Err(format!("While parsing discovery packet, expected first map key to be 'RequestGUID', but got '{}'.", key));
+			return exception!("Discovery packet has wrong second map key: ", key, " (should be ", "RequestGUID", ")");
 		}
 		
-		let request_uid = custom_unwrap_option_or_else!(mp_reader::read_string_auto(iterator).forward_error("While reading discovery packet GUID string")?, {
-			return Err("While parsing discovery packet, expected second value to be a string, but got null.".to_string());
+		let request_uid = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet GUID string")?, {
+			return exception!("Discovery packet has second value not set");
 		});
 		println!("Request UUID is: \x1b[38;2;255;0;150m{}\x1b[m", request_uid);
 		

@@ -41,4 +41,6 @@ pub mod error_handling;
 
 pub mod util {
 	pub mod custom_iterator;
+	pub mod log_formatter;
+	pub mod ansi_constants;
 }

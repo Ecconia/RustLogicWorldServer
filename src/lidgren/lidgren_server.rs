@@ -4,7 +4,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::ops::Add;
 use std::time::{Duration, Instant};
 
-use crate::error_handling::{custom_unwrap_option_or_else, custom_unwrap_result_or_else, ResultErrorExt};
+use crate::error_handling::{custom_unwrap_option_or_else, unwrap_or_print_return, EhResult, exception_from, exception_wrap};
 
 use crate::lidgren::data_structures::{MESSAGE_HEADER_LENGTH, MessageHeader};
 use crate::util::custom_iterator::CustomIterator;
@@ -41,9 +41,9 @@ impl ServerInstance {
 		application_name: String,
 		server_unique_id: u64,
 		target: String,
-	) -> Result<ServerInstance, String> {
-		let socket = UdpSocket::bind(target).forward_error("Could not bind server socket! Error: {}")?;
-		socket.set_nonblocking(true).expect("Could not set the socket to non-blocking mode.");
+	) -> EhResult<ServerInstance> {
+		let socket = exception_from!(UdpSocket::bind(target), "While binding server socket")?;
+		exception_from!(socket.set_nonblocking(true), "While setting socket to non-blocking mode")?;
 		
 		let input_buffer: [u8; 0xFFFF] = [0; 0xFFFF];
 		let now = Instant::now();
@@ -127,9 +127,7 @@ impl ServerInstance {
 		let mut iterator = CustomIterator::create(&self.input_buffer[0..amount_read]);
 		
 		while iterator.remaining() >= MESSAGE_HEADER_LENGTH {
-			let header = custom_unwrap_result_or_else!(MessageHeader::from_stream(&mut iterator), (|message| {
-				println!("Error constructing message header: {}", message);
-			}));
+			let header = unwrap_or_print_return!(exception_wrap!(MessageHeader::from_stream(&mut iterator), "While constructing lidgren header"));
 			println!("Type: \x1b[38;2;255;0;150m{:x?}\x1b[m Fragment: \x1b[38;2;255;0;150m{}\x1b[m Sequence#: \x1b[38;2;255;0;150m{}\x1b[m Bits: \x1b[38;2;255;0;150m{}\x1b[m Bytes: \x1b[38;2;255;0;150m{}\x1b[m",
 			         header.message_type, header.fragment, header.sequence_number, header.bits, header.bytes
 			);
@@ -144,26 +142,20 @@ impl ServerInstance {
 				return;
 			}
 			
-			let mut message_data_iterator = custom_unwrap_result_or_else!(iterator.sub_section(header.bytes as usize), (|message| {
-				println!("While creating message-sub-iterator: {}", message);
-				return;
-			}));
+			let mut message_data_iterator = unwrap_or_print_return!(exception_wrap!(iterator.sub_section(header.bytes as usize), "While creating message-sub-iterator"));
 			
 			if MessageType::is_system(&header.message_type) {
 				match header.message_type {
+					//TODO: Outsource each message type into own method (and add proper exception handling to each):
 					MessageType::Connect => {
-						let app_id = custom_unwrap_result_or_else!(lg_formatter::read_string(&mut message_data_iterator), (|message| {
-							println!("While reading app ID in Connect message, encountered issue:\n-> {}", message);
-						}));
+						let app_id = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut message_data_iterator), "While reading app id, in connect message"));
 						if self.application_name.ne(&app_id) {
 							println!("Remote {}:{} sent wrong application identifier name '{}'.", remote_address.ip(), remote_address.port(), app_id);
 							return;
 						}
 						//TODO: Actually somehow use the ID? Only useful if routers actually do funky stuff...
 						let _remote_id = lg_formatter::read_int_64(&mut message_data_iterator);
-						let remote_time = custom_unwrap_result_or_else!(lg_formatter::read_float(&mut message_data_iterator).forward_error("While reading the remote time"), (|message| {
-							println!("Dropping packet, as an error has occurred:\n{}", message);
-						}));
+						let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut message_data_iterator), "While reading the remote time"));
 						println!("Remote time: \x1b[38;2;255;0;150m{}\x1b[m", remote_time);
 						self.new_data_packets.push(DataPacket {
 							data_type: DataType::Connect,
@@ -184,9 +176,7 @@ impl ServerInstance {
 							println!("Remote {}:{} sent invalid connection established message, expected exactly 4 bytes, got {}.", remote_address.ip(), remote_address.port(), message_data_iterator.remaining());
 							return;
 						}
-						let remote_time = custom_unwrap_result_or_else!(lg_formatter::read_float(&mut message_data_iterator).forward_error("While reading the remote time"), (|message| {
-							println!("Dropping packet, as an error has occurred:\n{}", message);
-						}));
+						let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut message_data_iterator), "While reading the remote time"));
 						println!("Remote time: {}", remote_time);
 						//Register user:
 						self.user_map.insert(remote_address, ConnectedClient::new(remote_address.clone()));
@@ -224,12 +214,11 @@ impl ServerInstance {
 						return; //Done here.
 					}
 					MessageType::Disconnect => {
-						let disconnection_reason = custom_unwrap_result_or_else!(lg_formatter::read_string(&mut message_data_iterator), (|message| {
-							println!("Error while reading disconnect reason:\n -> {}", message);
-						}));
+						//TODO: First disconnect, then attempt to parse the disconnect reason!
+						let disconnection_reason = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut message_data_iterator), "While reading disconnect reason"));
 						println!(">> Client disconnected with reason: '{}'", disconnection_reason);
 						if message_data_iterator.has_more() {
-							println!("Error Disconnect packet had more data to read {}", message_data_iterator.remaining());
+							println!("Warning Disconnect packet had more data to read {}", message_data_iterator.remaining());
 						}
 						//Actually disconnect the client (as in stop sending it data and clean up:
 						//TODO: Maybe improve external disconnection...

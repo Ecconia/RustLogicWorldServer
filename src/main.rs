@@ -6,7 +6,7 @@ use rand::Rng;
 
 use rust_potato_server::lidgren;
 use rust_potato_server::network;
-use rust_potato_server::error_handling::custom_unwrap_result_or_else;
+use rust_potato_server::error_handling::{unwrap_or_print_return, exception_wrap};
 use rust_potato_server::util;
 
 use network::packets::c2s::discovery::Discovery;
@@ -18,16 +18,18 @@ use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
 
+use util::log_formatter::{log_info, log_warn, log_error};
+
 fn main() {
+	log_info!("Starting ", "Rust Logic World Server", "!");
+	
 	let mut rand = rand::thread_rng();
 	let random_unique_id = rand.gen();
-	let mut server = custom_unwrap_result_or_else!(ServerInstance::start(
+	let mut server = unwrap_or_print_return!(exception_wrap!(ServerInstance::start(
 		String::from("Logic World"),
 		random_unique_id,
 		String::from("[::]:43531"),
-	), (|error| {
-		println!("Issue starting server:\n{}", error);
-	}));
+	), "While starting network server"));
 	
 	let mut packets_to_process = Vec::new();
 	let min_tick_duration = Duration::from_millis(16);
@@ -71,29 +73,23 @@ fn handle_user_packet(
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
-	let packet_id = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
-		println!("While reading user packet ID:\n -> {}", message);
-	}));
-	println!("[UserPacket] Received data packet with ID: {}", packet_id);
+	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
+	log_info!("[UserPacket] Received data packet with id: ", packet_id);
 	
 	if packet_id == 17 {
-		println!("[UserPacket] Type: ConnectionEstablishedPacket");
-		let mut number = custom_unwrap_result_or_else!(mp_reader::read_array_auto(it), (|message| {
-			println!("While parsing ConnectionEstablishedPacket's entry count:\n -> {}", message);
-		}));
+		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
+		let mut number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_array_auto(it), "While parsing ConnectionEstablishedPacket's entry count"));
 		if number != 1 {
-			println!("Error: expected connection-established to have one element as array, got: {}", number);
+			log_error!("Error: expected connection-established to have one element as array, got: ", number);
 			return;
 		}
-		number = custom_unwrap_result_or_else!(mp_reader::read_int_auto(it), (|message| {
-			println!("While parsing ConnectionEstablishedPacket's dummy value:\n -> {}", message);
-		}));
+		number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While parsing ConnectionEstablishedPacket's dummy value"));
 		if number != 0 {
-			println!("Error: expected connection-established expected integer of value 0, got: {}", number);
+			log_error!("Error: expected connection-established expected integer of value 0, got: ", number);
 			return;
 		}
 		if it.has_more() {
-			println!("Error: expected connection-established to stop but have {} remaining bytes.", it.remaining());
+			log_error!("Error: expected connection-established to stop but have ", it.remaining(), " remaining bytes.");
 			return;
 		}
 		
@@ -106,6 +102,8 @@ fn handle_user_packet(
 		println!("The packet about to be sent is {} bytes long", packet_buffer.len());
 		
 		server.send_to(address, packet_buffer);
+	} else {
+		log_warn!("Warning: Received client packet with unknown type ", packet_id)
 	}
 }
 
@@ -115,9 +113,7 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	let request = custom_unwrap_result_or_else!(Discovery::parse(&mut iterator), (|message| {
-		println!("Error while parsing the clients Discovery packet: {}", message);
-	}));
+	let request = unwrap_or_print_return!(exception_wrap!(Discovery::parse(&mut iterator), "While parsing the discovery packet"));
 	
 	//Answer:
 	
@@ -139,10 +135,7 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	if let Err(message) = Connect::parse(&mut iterator) {
-		println!("Error while parsing connect packet: {}", message);
-		return;
-	}
+	unwrap_or_print_return!(exception_wrap!(Connect::parse(&mut iterator), "While parsing connect packet"));
 	
 	//Send answer:
 	

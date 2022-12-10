@@ -1,3 +1,5 @@
+use crate::error_handling::{EhResult, exception};
+
 pub struct CustomIterator<'a> {
 	buffer: &'a [u8],
 	pointer: usize,
@@ -17,9 +19,9 @@ impl<'a> CustomIterator<'a> {
 		value
 	}
 	
-	pub fn next(&mut self) -> Result<u8, String> {
+	pub fn next(&mut self) -> EhResult<u8> {
 		if self.pointer >= self.buffer.len() {
-			return Err(format!("Expected more bytes while reading, but reached {}/{}", self.pointer, self.buffer.len()));
+			return exception!("Expected more bytes while reading byte, but reached ", self.pointer, "/", self.buffer.len());
 		}
 		let value = self.buffer[self.pointer];
 		self.pointer += 1;
@@ -30,9 +32,9 @@ impl<'a> CustomIterator<'a> {
 		self.buffer[self.pointer]
 	}
 	
-	pub fn peek(&self) -> Result<u8, String> {
+	pub fn peek(&self) -> EhResult<u8> {
 		if self.pointer >= self.buffer.len() {
-			return Err(format!("Expected more bytes while peeking, but reached {}/{}", self.pointer, self.buffer.len()));
+			return exception!("Expected more bytes while peeking, but reached ", self.pointer, "/", self.buffer.len());
 		}
 		Ok(self.buffer[self.pointer])
 	}
@@ -45,10 +47,10 @@ impl<'a> CustomIterator<'a> {
 		}
 	}
 	
-	pub fn sub_section(&mut self, amount: usize) -> Result<CustomIterator, String> {
+	pub fn sub_section(&mut self, amount: usize) -> EhResult<CustomIterator> {
 		let target_position = self.pointer + amount;
 		if target_position > self.buffer.len() {
-			return Err(format!("Expected more bytes while creating sub iterator, but reached ({}+{})/{}", self.pointer, amount, self.buffer.len()));
+			return exception!("Expected more bytes while creating sub iterator, but reached (", self.pointer, "+", amount, ")/", self.buffer.len());
 		}
 		let sub_iterator = CustomIterator::create(
 			&self.buffer[self.pointer..target_position],
@@ -57,14 +59,14 @@ impl<'a> CustomIterator<'a> {
 		Ok(sub_iterator)
 	}
 	
-	pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>, String> {
+	pub fn read_bytes(&mut self, amount: usize) -> EhResult<Vec<u8>> {
 		//If the iterator is exhausted draining it, might cause a call with 0 as amount, then just return an empty vector.
 		if amount == 0 {
 			return Ok(Vec::new());
 		}
 		let target_position = self.pointer + amount;
 		if target_position > self.buffer.len() {
-			return Err(format!("Expected more bytes while reading bytes, but reached ({}+{})/{}", self.pointer, amount, self.buffer.len()));
+			return exception!("Expected more bytes while reading bytes, but reached (", self.pointer, "+", amount, ")/", self.buffer.len());
 		}
 		let result = self.buffer[self.pointer..target_position].to_vec();
 		self.pointer += amount;

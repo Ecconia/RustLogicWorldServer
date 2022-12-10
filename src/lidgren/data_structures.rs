@@ -1,4 +1,4 @@
-use crate::error_handling::custom_unwrap_option_or_else;
+use crate::error_handling::{custom_unwrap_option_or_else, EhResult, exception, exception_wrap};
 
 use crate::lidgren::message_type::MessageType;
 use crate::util::custom_iterator::CustomIterator;
@@ -16,9 +16,9 @@ pub struct MessageHeader {
 }
 
 impl MessageHeader {
-	pub fn from_stream(iterator: &mut CustomIterator) -> Result<MessageHeader, String> {
+	pub fn from_stream(iterator: &mut CustomIterator) -> EhResult<MessageHeader> {
 		if iterator.remaining() < MESSAGE_HEADER_LENGTH {
-			return Err(format!("Not enough bytes to read the header! Only got {}/{}", iterator.remaining(), MESSAGE_HEADER_LENGTH));
+			return exception!("Not enough bytes to read Lidgren header: ", iterator.remaining(), "/", MESSAGE_HEADER_LENGTH);
 		}
 		
 		let message_type_id = iterator.next_unchecked();
@@ -27,7 +27,7 @@ impl MessageHeader {
 		let bits = iterator.next_unchecked() as u16 | ((iterator.next_unchecked() as u16) << 8);
 		
 		let message_type = custom_unwrap_option_or_else!(MessageType::from_id(message_type_id),{
-			return Err(format!("Could not find message type for id {}!", message_type_id));
+			return exception_wrap!(exception!("There is no message type for id: ", message_type_id), "While reading Lidgren header");
 		});
 		
 		//Make sure to not overflow:
