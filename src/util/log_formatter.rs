@@ -55,7 +55,7 @@ pub use _color_error_highlight as color_error_highlight;
 //Meta color, used in stacktraces for the arrow and the path:
 #[macro_export]
 macro_rules! _color_meta {
-	() => { $crate::util::ansi_constants::ansi_rgb!(180, 255, 180) };
+	() => { $crate::util::ansi_constants::ansi_rgb!(80, 140, 255) };
 }
 pub use _color_meta as color_meta;
 
