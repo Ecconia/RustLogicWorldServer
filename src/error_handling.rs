@@ -1,17 +1,21 @@
 //Old error handling system with custom unwrappers:
 
 #[macro_export]
-macro_rules! _custom_unwrap_option_or_else {
-	($val:expr, $other:tt) => {
+macro_rules! _unwrap_some_or_return {
+	($val:expr) => {
 		match $val {
 			Some(x) => x,
-			None => {
-				$other
-			}
+			None => return,
+		}
+	};
+	($val:expr, $other:expr) => {
+		match $val {
+			Some(x) => x,
+			None => return $other,
 		}
 	};
 }
-pub use _custom_unwrap_option_or_else as custom_unwrap_option_or_else;
+pub use _unwrap_some_or_return as unwrap_some_or_return;
 
 #[macro_export]
 macro_rules! _custom_unwrap_result_or_else {

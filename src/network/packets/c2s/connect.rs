@@ -29,8 +29,8 @@ impl Connect {
 		log_debug!("Mod count: ", mod_count);
 		let mut mods = Vec::new();
 		for _ in 0..mod_count {
-			let mod_id = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet mod entry")?, {
-				return exception!("Connect packet has a mod name not set");
+			let mod_id = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet mod entry")?, {
+				exception!("Connect packet has a mod name not set")
 			});
 			log_debug!(" - ", mod_id);
 			mods.push(mod_id);
@@ -40,13 +40,13 @@ impl Connect {
 		if user_option_count != 1 {
 			return exception!("Connect packet has wrong user option count: ", user_option_count, " (should be ", 1, ")");
 		}
-		let username = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet username")?, {
-			return exception!("Connect packet has username not set");
+		let username = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet username")?, {
+			exception!("Connect packet has username not set")
 		});
 		log_debug!("Username: ", username);
 		
-		let version = custom_unwrap_option_or_else!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet client version")?, {
-			return exception!("Connect packet has version not set");
+		let version = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet client version")?, {
+			exception!("Connect packet has version not set")
 		});
 		let password_hash = exception_wrap!(mp_reader::read_binary_auto(iterator), "While reading connect packet password hash")?;
 		let hail_payload = exception_wrap!(mp_reader::read_string_auto(iterator), "While reading connect packet hail payload")?;

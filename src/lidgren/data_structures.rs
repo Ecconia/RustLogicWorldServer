@@ -26,8 +26,8 @@ impl MessageHeader {
 		let sequence_number = (iterator.next_unchecked() as u16 >> 1) | ((iterator.next_unchecked() as u16) << 7);
 		let bits = iterator.next_unchecked() as u16 | ((iterator.next_unchecked() as u16) << 8);
 		
-		let message_type = custom_unwrap_option_or_else!(MessageType::from_id(message_type_id),{
-			return exception_wrap!(exception!("There is no message type for id: ", message_type_id), "While reading Lidgren header");
+		let message_type = unwrap_some_or_return!(MessageType::from_id(message_type_id),{
+			exception_wrap!(exception!("There is no message type for id: ", message_type_id), "While reading Lidgren header")
 		});
 		
 		//Make sure to not overflow:
