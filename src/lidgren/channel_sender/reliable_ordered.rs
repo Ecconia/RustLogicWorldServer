@@ -3,6 +3,7 @@ use crate::prelude::*;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
+use crate::lidgren::lidgren_server::SocketWrapper;
 use crate::lidgren::message_type::MessageType;
 
 const WINDOW_SIZE: usize = 64;
@@ -40,11 +41,10 @@ impl ReliablyOrderedSender {
 		self.packet_queue.push_back(data);
 	}
 	
-	pub fn send_messages(&mut self, address: &SocketAddr, send_buffer: &mut Vec<(SocketAddr, Vec<u8>)>) {
+	pub fn send_messages(&mut self, address: &SocketAddr, socket: &mut SocketWrapper) {
 		for buffered_message in self.message_buffer.iter_mut().flatten() {
 			if !buffered_message.acknowledged && buffered_message.last_sent.elapsed().gt(&TIME_BETWEEN_RESENDS) {
-				//TODO: This copies the data of the vector, instead of borrowing it. Eventually one might optimize this, back to borrowing - requires winning over the borrow checker...
-				send_buffer.push((*address, buffered_message.data[..].to_vec()));
+				socket.send(&buffered_message.data[..], address);
 				buffered_message.last_sent = Instant::now();
 				buffered_message.sent_count += 1;
 			}
@@ -78,7 +78,7 @@ impl ReliablyOrderedSender {
 			packet_bytes.extend(data);
 			log_debug!("Yielding in ", packet_bytes.len(), " bytes");
 			
-			send_buffer.push((*address, packet_bytes[..].to_vec())); //Copy before storing it, else overhead starts...
+			socket.send(&packet_bytes[..], address); //Copy before storing it, else overhead starts...
 			self.message_buffer[buffer_index] = Some(EnqueuedMessage {
 				data: packet_bytes,
 				last_sent: Instant::now(),

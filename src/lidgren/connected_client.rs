@@ -10,7 +10,7 @@ use crate::lidgren::data_structures::MessageHeader;
 use crate::lidgren::data_types::DataType;
 use crate::lidgren::util::formatter as lg_formatter;
 use crate::util::custom_iterator::CustomIterator;
-use crate::lidgren::lidgren_server::DataPacket;
+use crate::lidgren::lidgren_server::{DataPacket, SocketWrapper};
 
 pub struct ConnectedClient {
 	pub remote_address: SocketAddr,
@@ -41,8 +41,8 @@ impl ConnectedClient {
 		self.channel_sender.received_acknowledge(sequence_id);
 	}
 	
-	pub fn send_messages(&mut self, send_buffer: &mut Vec<(SocketAddr, Vec<u8>)>) {
-		self.channel_sender.send_messages(&self.remote_address, send_buffer);
+	pub fn send_messages(&mut self, socket: &mut SocketWrapper) {
+		self.channel_sender.send_messages(&self.remote_address, socket);
 	}
 	
 	pub fn heartbeat(&mut self) {
