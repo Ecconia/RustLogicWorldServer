@@ -90,4 +90,14 @@ impl<'a> CustomIterator<'a> {
 	pub fn skip(&mut self) {
 		self.pointer += 1;
 	}
+	
+	//In case that one has to go back, these two methods allow to store and restore the position. Never use for anything else!
+	
+	pub fn pointer_save(&self) -> usize {
+		self.pointer
+	}
+	
+	pub fn pointer_restore(&mut self, pointer: usize) {
+		self.pointer = pointer;
+	}
 }

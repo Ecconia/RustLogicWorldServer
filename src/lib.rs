@@ -1,5 +1,6 @@
 pub mod network {
 	pub mod message_pack {
+		pub mod pretty_printer;
 		pub mod reader;
 		pub mod writer;
 	}
