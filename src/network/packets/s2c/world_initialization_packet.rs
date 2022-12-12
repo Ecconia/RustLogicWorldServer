@@ -53,9 +53,9 @@ impl WorldInitializationPacket {
 				//Scale:
 				mp_writer::write_float_auto(buffer, 1.0);
 				//Flying:
-				mp_writer::write_bool_auto(buffer, false);
-				//TeleportFromPreviousPosition:
 				mp_writer::write_bool_auto(buffer, true);
+				//TeleportFromPreviousPosition:
+				mp_writer::write_bool_auto(buffer, false);
 			}
 			//PlayerHotbar:
 			mp_writer::write_null(buffer); //No clue if a "null" hotbar works, but I think that means default.
