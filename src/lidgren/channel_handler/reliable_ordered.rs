@@ -4,6 +4,7 @@ use crate::lidgren::data_structures::MessageHeader;
 use crate::util::custom_iterator::CustomIterator;
 
 const WINDOW_SIZE: usize = 64;
+const SEQUENCE_NUMBERS: usize = 1024;
 
 struct InternalMessage {
 	header: MessageHeader,
@@ -34,8 +35,8 @@ impl ReliableOrderedHandler {
 		
 		if relative_sequence_number < 0 {
 			//TODO: Acknowledge
-			
 			//Received message is older, than what is already processed, so lets just discard it.
+			log_debug!("Drop packet as it is too old: ", relative_sequence_number);
 			return;
 		}
 		
@@ -48,11 +49,11 @@ impl ReliableOrderedHandler {
 			
 			//We had been waiting for you, enter!
 			output_list.push((header, data));
-			self.latest_sequence_index += 1;
+			self.latest_sequence_index = (self.latest_sequence_index + 1) % SEQUENCE_NUMBERS as u16;
 			
 			while let Some(buffered_message) = self.cycle_buffer[self.latest_sequence_index as usize % WINDOW_SIZE].take() {
 				output_list.push((buffered_message.header, buffered_message.data));
-				self.latest_sequence_index += 1;
+				self.latest_sequence_index = (self.latest_sequence_index + 1) % SEQUENCE_NUMBERS as u16;
 			}
 			
 			return;
