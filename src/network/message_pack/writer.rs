@@ -37,7 +37,7 @@ pub fn write_int_auto(buffer: &mut Vec<u8>, value: u32) {
 
 pub fn write_float_auto(buffer: &mut Vec<u8>, value: f32) {
 	buffer.push(0xCA);
-	let float_as_bits = value as u32;
+	let float_as_bits = value.to_bits();
 	buffer.push((float_as_bits >> 24) as u8);
 	buffer.push((float_as_bits >> 16) as u8);
 	buffer.push((float_as_bits >> 8) as u8);

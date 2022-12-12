@@ -92,7 +92,7 @@ pub fn read_int_auto(iterator: &mut CustomIterator) -> EhResult<u32> {
 
 pub fn read_float_32(iterator: &mut CustomIterator) -> EhResult<f32> {
 	match read_int_32(iterator) {
-		Ok(val) => Ok(val as f32),
+		Ok(val) => Ok(f32::from_bits(val)),
 		Err(e) => exception_wrap!(Err(e), "While reading 32 bit MP float")
 	}
 }
