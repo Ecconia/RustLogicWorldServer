@@ -8,7 +8,6 @@ use rand::Rng;
 
 use rust_potato_server::lidgren;
 use rust_potato_server::network;
-use rust_potato_server::error_handling::{unwrap_or_print_return, exception_wrap};
 use rust_potato_server::util;
 
 use network::packets::c2s::discovery::Discovery;

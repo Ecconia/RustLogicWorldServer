@@ -6,7 +6,7 @@ pub use crate::util::log_formatter::{
 	log_debug,
 };
 //Exception handling needed everywhere:
-pub use crate::error_handling::{
+pub use crate::util::error_handling::{
 	unwrap_some_or_return,
 	EhResult,
 	exception,

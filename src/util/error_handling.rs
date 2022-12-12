@@ -51,7 +51,7 @@ macro_rules! _unwrap_or_print_return {
 		match $val {
 			Ok(x) => x,
 			Err(message) => {
-				$crate::error_handling::ExceptionDetails::print(&message);
+				$crate::util::error_handling::ExceptionDetails::print(&message);
 				return;
 			}
 		}
@@ -69,13 +69,13 @@ macro_rules! _exception {
 				"Error: {}",
 				$crate::util::ansi_constants::ansi_reset!(),
 			), $while));
-			$crate::error_handling::ExceptionDetails {
+			$crate::util::error_handling::ExceptionDetails {
 				messages
 			}
 		})
 	};
 	( $( $while:expr ),+ ) => {
-		$crate::error_handling::exception!(
+		$crate::util::error_handling::exception!(
 			$crate::util::log_formatter::fmt_error!($($while),+)
 		)
 	};
@@ -89,13 +89,13 @@ macro_rules! _exception_from {
 		// Not recommended, as it won't add any position details.
 		match $result {
 			Ok(value) => Ok(value),
-			Err(exception) => $crate::error_handling::exception!(exception.to_string())
+			Err(exception) => $crate::util::error_handling::exception!(exception.to_string())
 		}
 	};
 	( $result:expr, $( $while:expr ),+ ) => {
 		//Exception while... basically syntax sugar for expansion...
-		$crate::error_handling::exception_wrap!(
-			$crate::error_handling::exception_from!($result),
+		$crate::util::error_handling::exception_wrap!(
+			$crate::util::error_handling::exception_from!($result),
 			$( $while ),+
 		)
 	};
@@ -145,7 +145,7 @@ impl<T> ResultExceptionDetailsExt<T> for EhResult<T> {
 #[macro_export]
 macro_rules! _exception_wrap {
 	( $result:expr, $( $while:expr ),* ) => {
-		$crate::error_handling::ResultExceptionDetailsExt::while_doing_detailed(
+		$crate::util::error_handling::ResultExceptionDetailsExt::while_doing_detailed(
 			$result, file!(), line!(), column!(), $crate::util::log_formatter::fmt_error!($( $while ),*)
 		)
 	};

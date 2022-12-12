@@ -38,9 +38,8 @@ pub mod lidgren {
 	pub mod data_types;
 }
 
-pub mod error_handling;
-
 pub mod util {
+	pub mod error_handling;
 	pub mod custom_iterator;
 	pub mod log_formatter;
 	pub mod ansi_constants;
