@@ -31,26 +31,36 @@ macro_rules! print_data {
 	};
 }
 
-pub fn pretty_print(iterator: &mut CustomIterator) {
+pub fn pretty_print_packet(iterator: &mut CustomIterator) {
+	pretty_print(iterator, true);
+}
+
+pub fn pretty_print_data(iterator: &mut CustomIterator) {
+	pretty_print(iterator, false);
+}
+
+fn pretty_print(iterator: &mut CustomIterator, packet: bool) {
 	let iterator_position = iterator.pointer_save();
 	
 	log_debug!("");
 	log_debug!("Printing MessagePack packet:");
-	do_printing(iterator);
+	do_printing(iterator, packet);
 	log_debug!("");
 	
 	iterator.pointer_restore(iterator_position);
 }
 
-fn do_printing(iterator: &mut CustomIterator) {
-	match reader::read_int_auto(iterator) {
-		Err(err) => {
-			log_error!("Failed to read LogicWorld packet id:");
-			err.print();
-			return;
-		}
-		Ok(id) => {
-			log_debug!("Packet id: ", id);
+fn do_printing(iterator: &mut CustomIterator, packet: bool) {
+	if packet {
+		match reader::read_int_auto(iterator) {
+			Err(err) => {
+				log_error!("Failed to read LogicWorld packet id:");
+				err.print();
+				return;
+			}
+			Ok(id) => {
+				log_debug!("Packet id: ", id);
+			}
 		}
 	}
 	unwrap_or_print_return!(parse_entry(iterator,

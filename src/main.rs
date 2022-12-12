@@ -19,7 +19,7 @@ use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
-use crate::network::message_pack::pretty_printer::pretty_print as mp_pretty_print;
+use crate::network::message_pack::pretty_printer::pretty_print_data as mp_pretty_print_data;
 
 fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
@@ -74,7 +74,6 @@ fn handle_user_packet(
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
-	mp_pretty_print(it);
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
 	log_info!("[UserPacket] Received data packet with id: ", packet_id);
 	
@@ -95,7 +94,7 @@ fn handle_user_packet(
 			return;
 		}
 		
-		//TODO: Respond with the world packet...
+		//Respond with world packet:
 		
 		let world_initialization_packet = WorldInitializationPacket::simple();
 		
@@ -105,7 +104,8 @@ fn handle_user_packet(
 		
 		server.send_to(address, packet_buffer);
 	} else {
-		log_warn!("Warning: Received client packet with unknown type ", packet_id)
+		log_warn!("Warning: Received client packet with unknown type ", packet_id);
+		mp_pretty_print_data(it);
 	}
 }
 
@@ -115,7 +115,6 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	mp_pretty_print(&mut iterator);
 	let request = unwrap_or_print_return!(exception_wrap!(Discovery::parse(&mut iterator), "While parsing the discovery packet"));
 	
 	//Answer:
@@ -138,7 +137,6 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	mp_pretty_print(&mut iterator);
 	unwrap_or_print_return!(exception_wrap!(Connect::parse(&mut iterator), "While parsing connect packet"));
 	
 	//Send answer:
