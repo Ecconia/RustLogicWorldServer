@@ -1,17 +1,18 @@
 use crate::prelude::*;
 
 use crate::network::message_pack::reader as mp_reader;
+use crate::network::packets::packet_ids::PacketIDs;
 use crate::util::custom_iterator::CustomIterator;
 
-pub struct Discovery {
+pub struct DiscoveryRequest {
 	pub intention_to_connect: bool,
 	pub request_uid: String,
 }
 
-impl Discovery {
-	pub fn parse(iterator: &mut CustomIterator) -> EhResult<Discovery> {
+impl DiscoveryRequest {
+	pub fn parse(iterator: &mut CustomIterator) -> EhResult<DiscoveryRequest> {
 		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading discovery packet id")?;
-		if packet_id != 10 {
+		if packet_id != PacketIDs::DiscoveryRequestPacket.id() {
 			return exception!("Discovery packet has wrong packet id: ", packet_id);
 		}
 		let map_size = exception_wrap!(mp_reader::read_map_auto(iterator), "While reading discovery packet entry map count")?;
@@ -41,7 +42,7 @@ impl Discovery {
 		});
 		log_debug!("Request UUID is: ", request_uid);
 		
-		Ok(Discovery {
+		Ok(DiscoveryRequest {
 			request_uid,
 			intention_to_connect,
 		})

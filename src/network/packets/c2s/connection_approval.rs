@@ -1,9 +1,10 @@
 use crate::prelude::*;
 
 use crate::network::message_pack::reader as mp_reader;
+use crate::network::packets::packet_ids::PacketIDs;
 use crate::util::custom_iterator::CustomIterator;
 
-pub struct Connect {
+pub struct ConnectionApproval {
 	pub username: String,
 	pub mods: Vec<String>,
 	pub version: String,
@@ -13,10 +14,10 @@ pub struct Connect {
 	pub hail_signature: Option<String>,
 }
 
-impl Connect {
-	pub fn parse(iterator: &mut CustomIterator) -> EhResult<Connect> {
+impl ConnectionApproval {
+	pub fn parse(iterator: &mut CustomIterator) -> EhResult<ConnectionApproval> {
 		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading connect packet id")?;
-		if packet_id != 16 {
+		if packet_id != PacketIDs::ConnectionApprovalPacket.id() {
 			return exception!("Connect packet packet has wrong packet id: ", packet_id);
 		}
 		
@@ -56,7 +57,7 @@ impl Connect {
 		log_debug!("HailPayload: ", format!("{:?}", hail_payload));
 		log_debug!("HailSignature: ", format!("{:?}", hail_signature));
 		
-		Ok(Connect {
+		Ok(ConnectionApproval {
 			username,
 			mods,
 			version,

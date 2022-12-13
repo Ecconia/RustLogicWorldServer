@@ -1,4 +1,5 @@
 use crate::network::message_pack::writer as mp_writer;
+use crate::network::packets::packet_ids::PacketIDs;
 
 pub struct WorldInitializationPacket {}
 
@@ -9,7 +10,7 @@ impl WorldInitializationPacket {
 	
 	pub fn write(&self, buffer: &mut Vec<u8>) {
 		//Version:
-		mp_writer::write_int_auto(buffer, 18);
+		mp_writer::write_int_auto(buffer, PacketIDs::WorldInitializationPacket.id());
 		
 		//Data:
 		{

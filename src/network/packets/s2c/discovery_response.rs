@@ -1,4 +1,5 @@
 use crate::network::message_pack::writer as mp_writer;
+use crate::network::packets::packet_ids::PacketIDs;
 
 pub struct DiscoveryResponse {
 	pub version: String,
@@ -29,7 +30,7 @@ impl DiscoveryResponse {
 	
 	pub fn write(&self, buffer: &mut Vec<u8>) {
 		//Version:
-		mp_writer::write_int_auto(buffer, 11);
+		mp_writer::write_int_auto(buffer, PacketIDs::DiscoveryResponsePacket.id());
 		
 		//Data:
 		mp_writer::write_map_auto(buffer, 9);

@@ -6,9 +6,11 @@ pub mod network {
 	}
 	
 	pub mod packets {
+		pub mod packet_ids;
+		
 		pub mod c2s {
-			pub mod discovery;
-			pub mod connect;
+			pub mod discovery_request;
+			pub mod connection_approval;
 		}
 		
 		pub mod s2c {

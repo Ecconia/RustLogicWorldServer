@@ -10,12 +10,13 @@ use rust_potato_server::lidgren;
 use rust_potato_server::network;
 use rust_potato_server::util;
 
-use network::packets::c2s::discovery::Discovery;
+use network::packets::c2s::discovery_request::DiscoveryRequest;
 use network::packets::s2c::discovery_response::DiscoveryResponse;
-use network::packets::c2s::connect::Connect;
+use network::packets::c2s::connection_approval::ConnectionApproval;
 use network::message_pack::reader as mp_reader;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
+use rust_potato_server::network::packets::packet_ids::PacketIDs;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
 use crate::network::message_pack::pretty_printer::pretty_print_data as mp_pretty_print_data;
@@ -76,7 +77,7 @@ fn handle_user_packet(
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
 	log_info!("[UserPacket] Received data packet with id: ", packet_id);
 	
-	if packet_id == 17 {
+	if packet_id == PacketIDs::ConnectionEstablishedPacket.id() {
 		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
 		let mut number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_array_auto(it), "While parsing ConnectionEstablishedPacket's entry count"));
 		if number != 1 {
@@ -114,7 +115,7 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	let request = unwrap_or_print_return!(exception_wrap!(Discovery::parse(&mut iterator), "While parsing the discovery packet"));
+	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(&mut iterator), "While parsing the discovery packet"));
 	
 	//Answer:
 	
@@ -136,7 +137,7 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	unwrap_or_print_return!(exception_wrap!(Connect::parse(&mut iterator), "While parsing connect packet"));
+	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(&mut iterator), "While parsing connect packet"));
 	
 	//Send answer:
 	
