@@ -77,7 +77,7 @@ fn handle_user_packet(
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
 	log_info!("[UserPacket] Received data packet with id: ", packet_id);
 	
-	if packet_id == PacketIDs::ConnectionEstablishedPacket.id() {
+	if packet_id == PacketIDs::ConnectionEstablished.id() {
 		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
 		let mut number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_array_auto(it), "While parsing ConnectionEstablishedPacket's entry count"));
 		if number != 1 {

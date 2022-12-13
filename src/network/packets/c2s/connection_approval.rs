@@ -17,7 +17,7 @@ pub struct ConnectionApproval {
 impl ConnectionApproval {
 	pub fn parse(iterator: &mut CustomIterator) -> EhResult<ConnectionApproval> {
 		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading connect packet id")?;
-		if packet_id != PacketIDs::ConnectionApprovalPacket.id() {
+		if packet_id != PacketIDs::ConnectionApproval.id() {
 			return exception!("Connect packet packet has wrong packet id: ", packet_id);
 		}
 		

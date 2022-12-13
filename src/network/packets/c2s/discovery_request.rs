@@ -12,7 +12,7 @@ pub struct DiscoveryRequest {
 impl DiscoveryRequest {
 	pub fn parse(iterator: &mut CustomIterator) -> EhResult<DiscoveryRequest> {
 		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading discovery packet id")?;
-		if packet_id != PacketIDs::DiscoveryRequestPacket.id() {
+		if packet_id != PacketIDs::DiscoveryRequest.id() {
 			return exception!("Discovery packet has wrong packet id: ", packet_id);
 		}
 		let map_size = exception_wrap!(mp_reader::read_map_auto(iterator), "While reading discovery packet entry map count")?;

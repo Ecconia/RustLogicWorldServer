@@ -30,7 +30,7 @@ impl DiscoveryResponse {
 	
 	pub fn write(&self, buffer: &mut Vec<u8>) {
 		//Version:
-		mp_writer::write_int_auto(buffer, PacketIDs::DiscoveryResponsePacket.id());
+		mp_writer::write_int_auto(buffer, PacketIDs::DiscoveryResponse.id());
 		
 		//Data:
 		mp_writer::write_map_auto(buffer, 9);

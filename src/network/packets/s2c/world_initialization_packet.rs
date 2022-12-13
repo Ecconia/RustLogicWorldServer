@@ -10,7 +10,7 @@ impl WorldInitializationPacket {
 	
 	pub fn write(&self, buffer: &mut Vec<u8>) {
 		//Version:
-		mp_writer::write_int_auto(buffer, PacketIDs::WorldInitializationPacket.id());
+		mp_writer::write_int_auto(buffer, PacketIDs::WorldInitialization.id());
 		
 		//Data:
 		{
