@@ -42,6 +42,10 @@ impl DiscoveryRequest {
 		});
 		log_debug!("Request UUID is: ", request_uid);
 		
+		if iterator.has_more() {
+			log_warn!("DiscoveryRequest packet has more bytes than expected, ", iterator.remaining(), " remaining bytes.");
+		}
+		
 		Ok(DiscoveryRequest {
 			request_uid,
 			intention_to_connect,

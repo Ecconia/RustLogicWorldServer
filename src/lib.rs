@@ -10,6 +10,7 @@ pub mod network {
 		
 		pub mod c2s {
 			pub mod discovery_request;
+			pub mod connection_established;
 			pub mod connection_approval;
 		}
 		

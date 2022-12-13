@@ -57,6 +57,10 @@ impl ConnectionApproval {
 		log_debug!("HailPayload: ", format!("{:?}", hail_payload));
 		log_debug!("HailSignature: ", format!("{:?}", hail_signature));
 		
+		if iterator.has_more() {
+			log_warn!("ConnectionApproval packet has more bytes than expected, ", iterator.remaining(), " remaining bytes.");
+		}
+		
 		Ok(ConnectionApproval {
 			username,
 			mods,

@@ -16,10 +16,11 @@ use network::packets::c2s::connection_approval::ConnectionApproval;
 use network::message_pack::reader as mp_reader;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
+use rust_potato_server::network::packets::c2s::connection_established::ConnectionEstablished;
 use rust_potato_server::network::packets::packet_ids::PacketIDs;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
-use crate::network::message_pack::pretty_printer::pretty_print_data as mp_pretty_print_data;
+use crate::network::message_pack::pretty_printer::pretty_print_packet as mp_pretty_print_packet;
 
 fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
@@ -74,25 +75,13 @@ fn handle_user_packet(
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
+	let pointer_restore = it.pointer_save();
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
-	log_info!("[UserPacket] Received data packet with id: ", packet_id);
+	it.pointer_restore(pointer_restore);
 	
 	if packet_id == PacketIDs::ConnectionEstablished.id() {
 		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
-		let mut number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_array_auto(it), "While parsing ConnectionEstablishedPacket's entry count"));
-		if number != 1 {
-			log_error!("Error: expected connection-established to have one element as array, got: ", number);
-			return;
-		}
-		number = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While parsing ConnectionEstablishedPacket's dummy value"));
-		if number != 0 {
-			log_error!("Error: expected connection-established expected integer of value 0, got: ", number);
-			return;
-		}
-		if it.has_more() {
-			log_error!("Error: expected connection-established to stop but have ", it.remaining(), " remaining bytes.");
-			return;
-		}
+		unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(it), "While parsing ConnectionEstablished packet"));
 		
 		//Respond with world packet:
 		
@@ -105,7 +94,7 @@ fn handle_user_packet(
 		server.send_to(address, packet_buffer);
 	} else {
 		log_warn!("Warning: Received client packet with unknown type ", packet_id);
-		mp_pretty_print_data(it);
+		mp_pretty_print_packet(it);
 	}
 }
 
@@ -115,7 +104,7 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(&mut iterator), "While parsing the discovery packet"));
+	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(&mut iterator), "While parsing DiscoveryRequest packet"));
 	
 	//Answer:
 	
@@ -137,7 +126,7 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(&mut iterator), "While parsing connect packet"));
+	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(&mut iterator), "While parsing ConnectionApproval packet"));
 	
 	//Send answer:
 	
