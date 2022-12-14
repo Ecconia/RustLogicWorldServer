@@ -76,7 +76,7 @@ fn handle_user_packet(
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
 	let pointer_restore = it.pointer_save();
-	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_int_auto(it), "While reading user packet id"));
+	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(it), "While reading user packet id"));
 	it.pointer_restore(pointer_restore);
 	
 	if packet_id == PacketIDs::ConnectionEstablished.id() {

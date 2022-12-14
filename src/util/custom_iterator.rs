@@ -5,6 +5,7 @@ pub struct CustomIterator<'a> {
 	pointer: usize,
 }
 
+//Main iterator functionality:
 impl<'a> CustomIterator<'a> {
 	pub fn create(buffer: &[u8]) -> CustomIterator {
 		CustomIterator {
@@ -99,5 +100,220 @@ impl<'a> CustomIterator<'a> {
 	
 	pub fn pointer_restore(&mut self, pointer: usize) {
 		self.pointer = pointer;
+	}
+}
+
+//Byte reader implementations:
+impl<'a> CustomIterator<'a> {
+	//### Big endian: ###########
+	
+	pub fn read_be_u64(&mut self) -> EhResult<u64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "BE u64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(u64::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_u32(&mut self) -> EhResult<u32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "BE u32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(u32::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_u16(&mut self) -> EhResult<u16> {
+		if self.remaining() < 2 {
+			return exception!("While reading ", "BE u16", " ran out of bytes: ", self.remaining(), "/", "2");
+		}
+		Ok(u16::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_i64(&mut self) -> EhResult<i64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "BE i64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(i64::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_i32(&mut self) -> EhResult<i32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "BE i32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(i32::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_i16(&mut self) -> EhResult<i16> {
+		if self.remaining() < 2 {
+			return exception!("While reading ", "BE i16", " ran out of bytes: ", self.remaining(), "/", "2");
+		}
+		Ok(i16::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_f64(&mut self) -> EhResult<f64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "BE f64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(f64::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_be_f32(&mut self) -> EhResult<f32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "BE f32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(f32::from_be_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	//### Little endian: #########
+	
+	pub fn read_le_u64(&mut self) -> EhResult<u64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "LE u64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(u64::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_u32(&mut self) -> EhResult<u32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "LE u32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(u32::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_u16(&mut self) -> EhResult<u16> {
+		if self.remaining() < 2 {
+			return exception!("While reading ", "LE u16", " ran out of bytes: ", self.remaining(), "/", "2");
+		}
+		Ok(u16::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_i64(&mut self) -> EhResult<i64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "LE i64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(i64::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_i32(&mut self) -> EhResult<i32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "LE i32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(i32::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_i16(&mut self) -> EhResult<i16> {
+		if self.remaining() < 2 {
+			return exception!("While reading ", "LE i16", " ran out of bytes: ", self.remaining(), "/", "2");
+		}
+		Ok(i16::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_f64(&mut self) -> EhResult<f64> {
+		if self.remaining() < 8 {
+			return exception!("While reading ", "LE f64", " ran out of bytes: ", self.remaining(), "/", "8");
+		}
+		Ok(f64::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
+	}
+	
+	pub fn read_le_f32(&mut self) -> EhResult<f32> {
+		if self.remaining() < 4 {
+			return exception!("While reading ", "LE f32", " ran out of bytes: ", self.remaining(), "/", "4");
+		}
+		Ok(f32::from_le_bytes([
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+			self.next_unchecked(),
+		]))
 	}
 }

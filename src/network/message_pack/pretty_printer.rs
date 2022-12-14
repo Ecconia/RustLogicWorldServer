@@ -52,7 +52,7 @@ fn pretty_print(iterator: &mut CustomIterator, packet: bool) {
 
 fn do_printing(iterator: &mut CustomIterator, packet: bool) {
 	if packet {
-		match reader::read_int_auto(iterator) {
+		match reader::read_u32(iterator) {
 			Err(err) => {
 				log_error!("Failed to read LogicWorld packet id:");
 				err.print();
@@ -81,30 +81,24 @@ fn parse_entry(
 	match type_fml {
 		0x00..=0x7f => {
 			//Positive fix integer:
-			//Reuse the current type byte!
-			let number = iterator.next_unchecked() & 0x7F;
+			let number = reader::read_pos_int_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Int", "PosFixInt", number);
 		}
 		0x80..=0x8F => {
 			//Fix map
-			//Reuse the current byte!
-			let amount = reader::read_map_flex(iterator).unwrap();
-			//Should never error, as we already read that byte
+			let amount = reader::read_map_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Map", "FixMap", amount);
 			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over FixMap entries")?;
 		}
 		0x90..=0x9F => {
 			//Fix array
-			//Reuse the current byte!
-			let amount = reader::read_array_flex(iterator).unwrap();
-			//Should never error, as we already read that byte
+			let amount = reader::read_array_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Array", "FixArray", amount);
 			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over FixArray entries")?;
 		}
 		0xA0..=0xBF => {
 			//Fix string
-			//Reuse the current byte!
-			let text = exception_wrap!(reader::read_string_flex(iterator), "")?;
+			let text = exception_wrap!(reader::read_string_fix(iterator), "While reading FixString")?;
 			print_data!(str prefix_first, "String", "FixString", text);
 		}
 		0xC0 => {
@@ -132,19 +126,16 @@ fn parse_entry(
 		}
 		0xC4 => {
 			//Binary 8
-			iterator.skip(); //The reader expects this byte to be read already...
 			let bytes = exception_wrap!(reader::read_binary_8(iterator), "While reading 8BitByteArray")?;
 			print_data!(prefix_first, "Bytes", "8BitByteArray", format!("{:?}", bytes));
 		}
 		0xC5 => {
 			//Binary 16
-			iterator.skip(); //The reader expects this byte to be read already...
 			let bytes = exception_wrap!(reader::read_binary_16(iterator), "While reading 16BitByteArray")?;
 			print_data!(prefix_first, "Bytes", "16BitByteArray", format!("{:?}", bytes));
 		}
 		0xC6 => {
 			//Binary 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let bytes = exception_wrap!(reader::read_binary_32(iterator), "While reading 32BitByteArray")?;
 			print_data!(prefix_first, "Bytes", "32BitByteArray", format!("{:?}", bytes));
 		}
@@ -174,62 +165,52 @@ fn parse_entry(
 		}
 		0xCA => {
 			//Float 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_float_32(iterator), "While reading 32BitFloat")?;
 			print_data!(prefix_first, "Float", "32BitFloat", number);
 		}
 		0xCB => {
 			//Float 64
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_float_64(iterator), "While reading 64BitFloat")?;
 			print_data!(prefix_first, "Float", "64BitFloat", number);
 		}
 		0xCC => {
 			//Unsigned Integer 8
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_int_8(iterator), "While reading 8UInt")?;
 			print_data!(prefix_first, "Int", "8UInt", number);
 		}
 		0xCD => {
 			//Unsigned Integer 16
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_int_16(iterator), "While reading 16UInt")?;
 			print_data!(prefix_first, "Int", "16UInt", number);
 		}
 		0xCE => {
 			//Unsigned Integer 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_int_32(iterator), "While reading 32UInt")?;
 			print_data!(prefix_first, "Int", "32UInt", number);
 		}
 		0xCF => {
 			//Unsigned Integer 64
-			iterator.skip(); //The reader expects this byte to be read already...
 			let number = exception_wrap!(reader::read_int_64(iterator), "While reading 64UInt")?;
 			print_data!(prefix_first, "Int", "64UInt", number);
 		}
 		0xD0 => {
 			//Signed Integer 8
-			iterator.skip(); //The reader expects this byte to be read already...
-			let number = exception_wrap!(reader::read_sint_8(iterator), "While reading 8SInt")?;
+			let number = exception_wrap!(reader::read_s_int_8(iterator), "While reading 8SInt")?;
 			print_data!(prefix_first, "Int", "8SInt", number);
 		}
 		0xD1 => {
 			//Signed Integer 16
-			iterator.skip(); //The reader expects this byte to be read already...
-			let number = exception_wrap!(reader::read_sint_16(iterator), "While reading 16SInt")?;
+			let number = exception_wrap!(reader::read_s_int_16(iterator), "While reading 16SInt")?;
 			print_data!(prefix_first, "Int", "16SInt", number);
 		}
 		0xD2 => {
 			//Signed Integer 32
-			iterator.skip(); //The reader expects this byte to be read already...
-			let number = exception_wrap!(reader::read_sint_32(iterator), "While reading 32SInt")?;
+			let number = exception_wrap!(reader::read_s_int_32(iterator), "While reading 32SInt")?;
 			print_data!(prefix_first, "Int", "32SInt", number);
 		}
 		0xD3 => {
 			//Signed Integer 64
-			iterator.skip(); //The reader expects this byte to be read already...
-			let number = exception_wrap!(reader::read_sint_64(iterator), "While reading 64SInt")?;
+			let number = exception_wrap!(reader::read_s_int_64(iterator), "While reading 64SInt")?;
 			print_data!(prefix_first, "Int", "64SInt", number);
 		}
 		0xD4 => {
@@ -269,54 +250,46 @@ fn parse_entry(
 		}
 		0xD9 => {
 			//String 8
-			iterator.skip(); //The reader expects this byte to be read already...
 			let text = exception_wrap!(reader::read_string_8(iterator), "While reading 8BitLengthString")?;
 			print_data!(str prefix_first, "String", "8BitLengthString", text);
 		}
 		0xDA => {
 			//String 16
-			iterator.skip(); //The reader expects this byte to be read already...
 			let text = exception_wrap!(reader::read_string_16(iterator), "While reading 16BitLengthString")?;
 			print_data!(str prefix_first, "String", "16BitLengthString", text);
 		}
 		0xDB => {
 			//String 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let text = exception_wrap!(reader::read_string_32(iterator), "While reading 32BitLengthString")?;
 			print_data!(str prefix_first, "String", "32BitLengthString", text);
 		}
 		0xDC => {
 			//Array 16
-			iterator.skip(); //The reader expects this byte to be read already...
 			let amount = exception_wrap!(reader::read_array_16(iterator), "While reading 16BitLengthArray amount")?;
 			print_data!(prefix_first, "Array", "16BitLengthArray", amount);
 			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over 16BitLengthArray entries")?;
 		}
 		0xDD => {
 			//Array 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let amount = exception_wrap!(reader::read_array_32(iterator), "While reading 32BitLengthArray amount")?;
 			print_data!(prefix_first, "Array", "32BitLengthArray", amount);
 			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over 32BitLengthArray entries")?;
 		}
 		0xDE => {
 			//Map 16
-			iterator.skip(); //The reader expects this byte to be read already...
 			let amount = exception_wrap!(reader::read_map_16(iterator), "While reading 16BitLengthMap amount")?;
 			print_data!(prefix_first, "Map", "16BitLengthMap", amount);
 			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over 16BitLengthMap entries")?;
 		}
 		0xDF => {
 			//Map 32
-			iterator.skip(); //The reader expects this byte to be read already...
 			let amount = exception_wrap!(reader::read_map_32(iterator), "While reading 32BitLengthMap amount")?;
 			print_data!(prefix_first, "Map", "32BitLengthMap", amount);
 			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over 32BitLengthMap entries")?;
 		}
 		0xE0..=0xFF => {
 			//Negative fix integer
-			//Reuse the current byte!
-			let number = (iterator.next_unchecked() & 0x1F | 0b11100000) as i8;
+			let number = reader::read_neg_int_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Int", "NegFixInt", number);
 		}
 	}

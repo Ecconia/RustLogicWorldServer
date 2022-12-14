@@ -2,279 +2,571 @@ use crate::prelude::*;
 
 use crate::util::custom_iterator::CustomIterator;
 
-//Integers:
+//### Internal helpers: ##############
+
+//Macros / Helpers:
+
+macro_rules! expect_type {
+	($iterator:expr, $name:expr, $value:expr) => {
+		let value = exception_wrap!($iterator.next(), "While reading MP ", $name, " type byte")?;
+		if value != $value {
+			return exception!("Expected MP ", $name, ", but got type byte: ", value);
+		}
+	}
+}
+
+macro_rules! _optional {
+	($iterator:expr, $input:expr) => {
+		match exception_wrap!($crate::network::message_pack::reader::check_null($iterator), "While probing for ", "Nil", " value")? {
+			true => Ok(None),
+			false => Ok(Some($input?)),
+		}
+	}
+}
+pub(crate) use _optional as optional;
+
+pub fn check_null(iterator: &mut CustomIterator) -> EhResult<bool> {
+	let value = exception_wrap!(iterator.peek(), "While checking for ", "Nil", " type byte")?;
+	if value == 0xC0 {
+		iterator.skip(); //Drop the null byte.
+		return Ok(true);
+	}
+	Ok(false)
+}
+
+//String / Bytes:
+
+fn read_string_len(iterator: &mut CustomIterator, length: usize) -> EhResult<String> {
+	let bytes = exception_wrap!(iterator.read_bytes(length), "While reading fixed length MP string")?;
+	exception_from!(String::from_utf8(bytes), "While converting fixed length MP string bytes to UTF8")
+}
+
+fn read_bytes_len(iterator: &mut CustomIterator, length: usize) -> EhResult<Vec<u8>> {
+	exception_wrap!(iterator.read_bytes(length), "While reading MP binary bytes")
+}
+
+//### Explicit types: ################
+
+//Positive/Unsigned Integers:
+
+pub fn read_pos_int_fix(iterator: &mut CustomIterator) -> EhResult<u8> {
+	let value = exception_wrap!(iterator.next(), "While reading MP ", "fix int")?;
+	if value >= 0x80 {
+		return exception!("Expected MP ", "fix int", ", but got value: ", value);
+	}
+	Ok(value)
+}
+
+pub fn read_neg_int_fix(iterator: &mut CustomIterator) -> EhResult<i8> {
+	let value = exception_wrap!(iterator.next(), "While reading MP ", "fix int")?;
+	if value < 0xE0 {
+		return exception!("Expected MP ", "fix int", ", but got value: ", value);
+	}
+	Ok(value as i8) //Should make the number negative
+}
+
+//Unsigned Integers:
 
 pub fn read_int_8(iterator: &mut CustomIterator) -> EhResult<u8> {
-	exception_wrap!(iterator.next(), "While reading a MP 8 bit integer")
+	expect_type!(iterator, "unsigned int 8", 0xCC);
+	exception_wrap!(iterator.next(), "While reading MP ", "unsigned int 8")
 }
 
 pub fn read_int_16(iterator: &mut CustomIterator) -> EhResult<u16> {
-	if iterator.remaining() < 2 {
-		return exception!("While reading a MP 16 bit integer, ran out of bytes: ", iterator.remaining(), "/", 2);
-	}
-	Ok((iterator.next_unchecked() as u16) << 8 | iterator.next_unchecked() as u16)
+	expect_type!(iterator, "unsigned int 16", 0xCD);
+	exception_wrap!(iterator.read_be_u16(), "While reading MP ", "unsigned int 16")
 }
 
 pub fn read_int_32(iterator: &mut CustomIterator) -> EhResult<u32> {
-	if iterator.remaining() < 4 {
-		return exception!("While reading a MP 32 bit integer, ran out of bytes: ", iterator.remaining(), "/", 4);
-	}
-	Ok((iterator.next_unchecked() as u32) << 24 |
-		(iterator.next_unchecked() as u32) << 16 |
-		(iterator.next_unchecked() as u32) << 8 |
-		(iterator.next_unchecked() as u32))
+	expect_type!(iterator, "unsigned int 32", 0xCE);
+	exception_wrap!(iterator.read_be_u32(), "While reading MP ", "unsigned int 32")
 }
 
 pub fn read_int_64(iterator: &mut CustomIterator) -> EhResult<u64> {
-	if iterator.remaining() < 8 {
-		return exception!("While reading MP 64 bit integer, ran out of bytes: ", iterator.remaining(), "/", 4);
-	}
-	Ok((iterator.next_unchecked() as u64) << 56 |
-		(iterator.next_unchecked() as u64) << 48 |
-		(iterator.next_unchecked() as u64) << 40 |
-		(iterator.next_unchecked() as u64) << 32 |
-		(iterator.next_unchecked() as u64) << 24 |
-		(iterator.next_unchecked() as u64) << 16 |
-		(iterator.next_unchecked() as u64) << 8 |
-		(iterator.next_unchecked() as u64))
+	expect_type!(iterator, "unsigned int 64", 0xCF);
+	exception_wrap!(iterator.read_be_u64(), "While reading MP ", "unsigned int 64")
 }
 
-pub fn read_sint_8(iterator: &mut CustomIterator) -> EhResult<i8> {
-	match read_int_8(iterator) {
-		Ok(val) => Ok(val as i8),
-		Err(e) => exception_wrap!(Err(e), "While reading signed 8 bit MP integer")
-	}
+//Signed Integers:
+
+pub fn read_s_int_8(iterator: &mut CustomIterator) -> EhResult<i8> {
+	expect_type!(iterator, "signed int 8", 0xD0);
+	Ok(exception_wrap!(iterator.next(), "While reading MP ", "unsigned int 8")? as i8)
 }
 
-pub fn read_sint_16(iterator: &mut CustomIterator) -> EhResult<i16> {
-	match read_int_16(iterator) {
-		Ok(val) => Ok(val as i16),
-		Err(e) => exception_wrap!(Err(e), "While reading signed 16 bit MP integer")
-	}
+pub fn read_s_int_16(iterator: &mut CustomIterator) -> EhResult<i16> {
+	expect_type!(iterator, "signed int 16", 0xD1);
+	exception_wrap!(iterator.read_be_i16(), "While reading MP ", "signed int 16")
 }
 
-pub fn read_sint_32(iterator: &mut CustomIterator) -> EhResult<i32> {
-	match read_int_32(iterator) {
-		Ok(val) => Ok(val as i32),
-		Err(e) => exception_wrap!(Err(e), "While reading signed 32 bit MP integer")
-	}
+pub fn read_s_int_32(iterator: &mut CustomIterator) -> EhResult<i32> {
+	expect_type!(iterator, "signed int 32", 0xD2);
+	exception_wrap!(iterator.read_be_i32(), "While reading MP ", "signed int 32")
 }
 
-pub fn read_sint_64(iterator: &mut CustomIterator) -> EhResult<i64> {
-	match read_int_64(iterator) {
-		Ok(val) => Ok(val as i64),
-		Err(e) => exception_wrap!(Err(e), "While reading signed 64 bit MP integer")
-	}
+pub fn read_s_int_64(iterator: &mut CustomIterator) -> EhResult<i64> {
+	expect_type!(iterator, "signed int 64", 0xD3);
+	exception_wrap!(iterator.read_be_i64(), "While reading MP ", "signed int 64")
 }
 
-pub fn read_int_auto(iterator: &mut CustomIterator) -> EhResult<u32> {
-	let type_fml = exception_wrap!(iterator.next(), "While reading MP integer type")?;
-	match type_fml {
-		0..=0x80 => {
-			Ok(type_fml as u32)
-		}
-		0xCC => {
-			Ok(exception_wrap!(read_int_8(iterator), "While automatically reading a 8 bit integer")? as u32)
-		}
-		0xCD => {
-			Ok(exception_wrap!(read_int_16(iterator), "While automatically reading a 16 bit integer")? as u32)
-		}
-		0xCE => {
-			Ok(exception_wrap!(read_int_32(iterator), "While automatically reading a 32 bit integer")? as u32)
-		}
-		_ => {
-			exception!("While expecting MP integer type, got: ", format!("0x{:X}", type_fml))
-		}
+//Map:
+
+pub fn read_map_fix(iterator: &mut CustomIterator) -> EhResult<u8> {
+	let value = exception_wrap!(iterator.next(), "While reading MP ", "fix map")?;
+	if !(0x80..0x90).contains(&value) {
+		return exception!("Expected MP ", "fix map", ", but got value: ", value);
 	}
+	Ok(value - 0x80)
+}
+
+pub fn read_map_16(iterator: &mut CustomIterator) -> EhResult<u16> {
+	expect_type!(iterator, "map 16", 0xDE);
+	exception_wrap!(iterator.read_be_u16(), "While reading MP ", "map 16")
+}
+
+pub fn read_map_32(iterator: &mut CustomIterator) -> EhResult<u32> {
+	expect_type!(iterator, "map 32", 0xDF);
+	exception_wrap!(iterator.read_be_u32(), "While reading MP ", "map 32")
+}
+
+//Array:
+
+pub fn read_array_fix(iterator: &mut CustomIterator) -> EhResult<u8> {
+	let value = exception_wrap!(iterator.next(), "While reading MP ", "fix array")?;
+	if !(0x90..0xA0).contains(&value) {
+		return exception!("Expected MP ", "fix array", ", but got value: ", value);
+	}
+	Ok(value - 0x90)
+}
+
+pub fn read_array_16(iterator: &mut CustomIterator) -> EhResult<u16> {
+	expect_type!(iterator, "array 16", 0xDC);
+	exception_wrap!(iterator.read_be_u16(), "While reading MP ", "array 16")
+}
+
+pub fn read_array_32(iterator: &mut CustomIterator) -> EhResult<u32> {
+	expect_type!(iterator, "array 32", 0xDD);
+	exception_wrap!(iterator.read_be_u32(), "While reading MP ", "array 32")
+}
+
+//String:
+
+pub fn read_string_fix(iterator: &mut CustomIterator) -> EhResult<String> {
+	let value = exception_wrap!(iterator.next(), "While reading MP ", "fix string", " type/length")?;
+	if value < 0xA0 || value >= 0xC0 {
+		return exception!("Expected MP ", "fix string", ", but got value: ", value);
+	}
+	exception_wrap!(read_string_len(iterator, (value - 0xA0) as usize), "While reading MP ", "fix string")
+}
+
+pub fn read_string_8(iterator: &mut CustomIterator) -> EhResult<String> {
+	expect_type!(iterator, "string 8", 0xD9);
+	let length = exception_wrap!(iterator.next(), "While reading ", "string 8", " length")?;
+	exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "string 8")
+}
+
+pub fn read_string_16(iterator: &mut CustomIterator) -> EhResult<String> {
+	expect_type!(iterator, "string 16", 0xDA);
+	let length = exception_wrap!(iterator.read_be_u16(), "While reading ", "string 16", " length")?;
+	exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "string 16")
+}
+
+pub fn read_string_32(iterator: &mut CustomIterator) -> EhResult<String> {
+	expect_type!(iterator, "string 32", 0xDB);
+	let length = exception_wrap!(iterator.read_be_u32(), "While reading ", "string 32", " length")?;
+	exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "string 32")
+}
+
+//Bytes:
+
+pub fn read_binary_8(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
+	expect_type!(iterator, "binary 8", 0xC4);
+	let length = exception_wrap!(iterator.next(), "While reading MP ", "binary 8", " length")? as usize;
+	exception_wrap!(read_bytes_len(iterator, length), "While reading MP ", "binary 8", " bytes")
+}
+
+pub fn read_binary_16(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
+	expect_type!(iterator, "binary 16", 0xC5);
+	let length = exception_wrap!(iterator.read_be_u16(), "While reading MP ", "binary 16", " length")? as usize;
+	exception_wrap!(read_bytes_len(iterator, length), "While reading MP ", "binary 16", " bytes")
+}
+
+pub fn read_binary_32(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
+	expect_type!(iterator, "binary 32", 0xC6);
+	let length = exception_wrap!(iterator.read_be_u32(), "While reading MP ", "binary 32", " length")? as usize;
+	exception_wrap!(read_bytes_len(iterator, length), "While reading MP ", "binary 32", " bytes")
 }
 
 //Float:
 
 pub fn read_float_32(iterator: &mut CustomIterator) -> EhResult<f32> {
-	match read_int_32(iterator) {
-		Ok(val) => Ok(f32::from_bits(val)),
-		Err(e) => exception_wrap!(Err(e), "While reading 32 bit MP float")
-	}
+	expect_type!(iterator, "float 32", 0xCA);
+	exception_wrap!(iterator.read_be_f32(), "While reading MP ", "float 32")
 }
 
 pub fn read_float_64(iterator: &mut CustomIterator) -> EhResult<f64> {
-	match read_int_64(iterator) {
-		Ok(val) => Ok(val as f64),
-		Err(e) => exception_wrap!(Err(e), "While reading 64 bit MP float")
+	expect_type!(iterator, "float 64", 0xCB);
+	exception_wrap!(iterator.read_be_f64(), "While reading MP ", "float 64")
+}
+
+//### Implicit types: ################
+
+pub fn read_u8(iterator: &mut CustomIterator) -> EhResult<u8> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u8", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			Ok(type_byte)
+		},
+		0xCC => {
+			exception_wrap!(iterator.next(), "While reading ", "u8", " via MP: ", "byte")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "u8", ", but got: ", type_byte)
+		}
 	}
 }
 
-//Map:
-
-pub fn read_map_flex(iterator: &mut CustomIterator) -> EhResult<u32> {
-	let next = exception_wrap!(iterator.next(), "While reading MP flex map type/value")?;
-	Ok((next as u32) - 0x80)
-}
-
-pub fn read_map_16(iterator: &mut CustomIterator) -> EhResult<u16> {
-	exception_wrap!(read_int_16(iterator), "While reading MP 16-bit length prefixed map length")
-}
-
-pub fn read_map_32(iterator: &mut CustomIterator) -> EhResult<u32> {
-	exception_wrap!(read_int_32(iterator), "While reading MP 32-bit length prefixed map length")
-}
-
-pub fn read_map_auto(iterator: &mut CustomIterator) -> EhResult<u32> {
-	let type_fml = exception_wrap!(iterator.peek(), "While reading MP map type")?;
-	match type_fml {
-		0x80..=0x91 => {
-			Ok(exception_wrap!(read_map_flex(iterator), "While automatically reading MP flex map")? as u32)
+pub fn read_u16(iterator: &mut CustomIterator) -> EhResult<u16> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u16", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			Ok(type_byte as u16)
+		},
+		0xCC => {
+			Ok(exception_wrap!(iterator.next(), "While reading ", "u16", " via MP: ", "ubyte")? as u16)
+		},
+		0xCD => {
+			exception_wrap!(iterator.read_be_u16(), "While reading ", "u16", " via MP: ", "ushort")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "u16", ", but got: ", type_byte)
 		}
-		0xDE => {
-			iterator.skip();
-			Ok(exception_wrap!(read_int_16(iterator), "While automatically reading 16 MP bit map")? as u32)
+	}
+}
+
+pub fn read_u32(iterator: &mut CustomIterator) -> EhResult<u32> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u32", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			Ok(type_byte as u32)
+		},
+		0xCC => {
+			Ok(exception_wrap!(iterator.next(), "While reading ", "u32", " via MP: ", "ubyte")? as u32)
+		},
+		0xCD => {
+			Ok(exception_wrap!(iterator.read_be_u16(), "While reading ", "u32", " via MP: ", "ushort")? as u32)
+		},
+		0xCE => {
+			exception_wrap!(iterator.read_be_u32(), "While reading ", "u32", " via MP: ", "uint")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "u32", ", but got: ", format!("0x{:X}", type_byte))
 		}
-		0xDF => {
-			iterator.skip();
-			Ok(exception_wrap!(read_int_32(iterator), "While automatically reading 32 MP bit map")? as u32)
+	}
+}
+
+pub fn read_u64(iterator: &mut CustomIterator) -> EhResult<u64> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u64", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			Ok(type_byte as u64)
+		},
+		0xCC => {
+			Ok(exception_wrap!(iterator.next(), "While reading ", "u64", " via MP: ", "ubyte")? as u64)
+		},
+		0xCD => {
+			Ok(exception_wrap!(iterator.read_be_u16(), "While reading ", "u64", " via MP: ", "ushort")? as u64)
+		},
+		0xCE => {
+			Ok(exception_wrap!(iterator.read_be_u32(), "While reading ", "u64", " via MP: ", "uint")? as u64)
+		},
+		0xCF => {
+			exception_wrap!(iterator.read_be_u64(), "While reading ", "u64", " via MP: ", "ulong")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "u64", ", but got: ", type_byte)
+		}
+	}
+}
+
+pub fn read_i8(iterator: &mut CustomIterator) -> EhResult<i8> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i8", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			//Positive fix - fits
+			Ok(type_byte as i8) //Although positive, this fits in a signed byte!
+		},
+		0xE0..=0xFF => {
+			//Negative fix - fits
+			Ok(type_byte as i8)
+		},
+		0xD0 => {
+			//Negative byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i8", " via MP: ", "sbyte")? as i8)
+		},
+		0xCC => {
+			//Positive byte - fits, if the highest bit is not set!
+			let value = exception_wrap!(iterator.next(), "While reading ", "i8", " via MP: ", "byte")?;
+			if value >= 0x80 {
+				return exception!("Expected ", "signed byte", ", but got unsigned byte with highest bit set.");
+			}
+			Ok(value as i8)
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "i8", ", but got: ", type_byte)
+		}
+	}
+}
+
+pub fn read_i16(iterator: &mut CustomIterator) -> EhResult<i16> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i16", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			//Positive fix - fits
+			Ok(type_byte as i16)
+		},
+		0xE0..=0xFF => {
+			//Negative fix - fits
+			Ok(type_byte as i16)
+		},
+		0xD0 => {
+			//Negative byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i16", " via MP: ", "sbyte")? as i16)
+		},
+		0xCC => {
+			//Positive byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i16", " via MP: ", "byte")? as i16)
+		},
+		0xD1 => {
+			//Negative short - fits
+			exception_wrap!(iterator.read_be_i16(), "While reading ", "i16", " via MP: ", "sshort")
+		}
+		0xCD => {
+			//Positive short - fits, if the highest bit is not set!
+			let value = exception_wrap!(iterator.read_be_i16(), "While reading ", "i16", " via MP: ", "short")?;
+			if value < 0 {
+				return exception!("Expected ", "signed short", ", but got unsigned short with highest bit set.");
+			}
+			Ok(value)
 		}
 		_ => {
-			exception!("While expecting MP map type, got: ", format!("0x{:X}", type_fml))
+			exception!("Expected MP type, that would fit ", "i16", ", but got: ", type_byte)
 		}
 	}
 }
 
-//Array:
-
-pub fn read_array_flex(iterator: &mut CustomIterator) -> EhResult<u8> {
-	let next = exception_wrap!(iterator.next(), "While reading MP flex array type")?;
-	Ok(next - 0x90)
-}
-
-pub fn read_array_16(iterator: &mut CustomIterator) -> EhResult<u16> {
-	exception_wrap!(read_int_16(iterator), "While reading MP 16-bit length prefixed array length")
-}
-
-pub fn read_array_32(iterator: &mut CustomIterator) -> EhResult<u32> {
-	exception_wrap!(read_int_32(iterator), "While reading MP 32-bit length prefixed array length")
-}
-
-pub fn read_array_auto(iterator: &mut CustomIterator) -> EhResult<u32> {
-	let type_fml = exception_wrap!(iterator.peek(), "While reading MP array type")?;
-	match type_fml {
-		0x90..=0xA1 => {
-			Ok(exception_wrap!(read_array_flex(iterator), "While automatically reading MP flex array")? as u32)
-		}
-		0xDC => {
-			iterator.skip();
-			Ok(exception_wrap!(read_int_16(iterator), "While automatically reading 16 bit MP array")? as u32)
-		}
-		0xDD => {
-			iterator.skip();
-			Ok(exception_wrap!(read_int_32(iterator), "While automatically reading 32 bit MP array")? as u32)
-		}
+pub fn read_i32(iterator: &mut CustomIterator) -> EhResult<i32> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i32", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			//Positive fix - fits
+			Ok(type_byte as i32)
+		},
+		0xE0..=0xFF => {
+			//Negative fix - fits
+			Ok(type_byte as i32)
+		},
+		0xD0 => {
+			//Negative byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i32", " via MP: ", "sbyte")? as i32)
+		},
+		0xCC => {
+			//Positive byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i32", " via MP: ", "byte")? as i32)
+		},
+		0xD1 => {
+			//Negative short - fits
+			Ok(exception_wrap!(iterator.read_be_i16(), "While reading ", "i32", " via MP: ", "sshort")? as i32)
+		},
+		0xCD => {
+			//Positive short - fits
+			Ok(exception_wrap!(iterator.read_be_i16(), "While reading ", "i32", " via MP: ", "short")? as i32)
+		},
+		0xD2 => {
+			//Negative int - fits
+			exception_wrap!(iterator.read_be_i32(), "While reading ", "i32", " via MP: ", "sint")
+		},
+		0xCE => {
+			//Positive int - fits, if the highest bit is not set!
+			let value = exception_wrap!(iterator.read_be_i32(), "While reading ", "i32", " via MP: ", "int")?;
+			if value < 0 {
+				return exception!("Expected ", "signed int", ", but got unsigned int with highest bit set.");
+			}
+			Ok(value)
+		},
 		_ => {
-			exception!("While expecting MP array type, got: ", format!("0x{:X}", type_fml))
+			exception!("Expected MP type, that would fit ", "i32", ", but got: ", type_byte)
 		}
 	}
 }
 
-//String:
-
-fn read_string_len(iterator: &mut CustomIterator, length: usize) -> EhResult<String> {
-	let bytes = exception_wrap!(iterator.read_bytes(length), "While reading fixed length MP string")?;
-	exception_from!(String::from_utf8(bytes), "While converting fixed length MP string bytes")
-}
-
-pub fn read_string_flex(iterator: &mut CustomIterator) -> EhResult<String> {
-	let next = exception_wrap!(iterator.next(), "While reading MP flex string length")?;
-	let length = (next - 0xA0) as usize;
-	exception_wrap!(read_string_len(iterator, length), "While reading MP flex string")
-}
-
-pub fn read_string_8(iterator: &mut CustomIterator) -> EhResult<String> {
-	let length = exception_wrap!(read_int_8(iterator), "While reading an 8 bit string prefix")? as usize;
-	read_string_len(iterator, length)
-}
-
-pub fn read_string_16(iterator: &mut CustomIterator) -> EhResult<String> {
-	let length = exception_wrap!(read_int_16(iterator), "While reading a 16 bit string prefix")? as usize;
-	read_string_len(iterator, length)
-}
-
-pub fn read_string_32(iterator: &mut CustomIterator) -> EhResult<String> {
-	let length = exception_wrap!(read_int_32(iterator), "While reading a 32 bit string prefix")? as usize;
-	read_string_len(iterator, length)
-}
-
-pub fn read_string_auto(iterator: &mut CustomIterator) -> EhResult<Option<String>> {
-	let type_fml = exception_wrap!(iterator.peek(), "While reading MP string")?;
-	match type_fml {
-		0xA0..=0xBF => {
-			Ok(Some(exception_wrap!(read_string_flex(iterator), "While automatically reading a flex string")?))
+pub fn read_i64(iterator: &mut CustomIterator) -> EhResult<i64> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i64", " via MP: ", "type")?;
+	match type_byte {
+		0..=0x79 => {
+			//Positive fix - fits
+			Ok(type_byte as i64)
+		},
+		0xE0..=0xFF => {
+			//Negative fix - fits
+			Ok(type_byte as i64)
+		},
+		0xD0 => {
+			//Negative byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i64", " via MP: ", "sbyte")? as i64)
+		},
+		0xCC => {
+			//Positive byte - fits
+			Ok(exception_wrap!(iterator.next(), "While reading ", "i64", " via MP: ", "byte")? as i64)
+		},
+		0xD1 => {
+			//Negative short - fits
+			Ok(exception_wrap!(iterator.read_be_i16(), "While reading ", "i64", " via MP: ", "sshort")? as i64)
+		},
+		0xCD => {
+			//Positive short - fits
+			Ok(exception_wrap!(iterator.read_be_i16(), "While reading ", "i64", " via MP: ", "short")? as i64)
+		},
+		0xD2 => {
+			//Negative int - fits
+			Ok(exception_wrap!(iterator.read_be_i32(), "While reading ", "i64", " via MP: ", "sint")? as i64)
+		},
+		0xCE => {
+			//Positive int - fits
+			Ok(exception_wrap!(iterator.read_be_i32(), "While reading ", "i64", " via MP: ", "int")? as i64)
+		},
+		0xD3 => {
+			//Negative long - fits
+			exception_wrap!(iterator.read_be_i64(), "While reading ", "i64", " via MP: ", "slong")
+		},
+		0xCF => {
+			//Positive long - fits, if the highest bit is not set!
+			let value = exception_wrap!(iterator.read_be_i64(), "While reading ", "i64", " via MP: ", "long")?;
+			if value < 0 {
+				return exception!("Expected ", "signed long", ", but got unsigned long with highest bit set.");
+			}
+			Ok(value)
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "i64", ", but got: ", type_byte)
 		}
-		0xC0 => {
-			iterator.skip();
-			Ok(None)
+	}
+}
+
+pub fn read_f32(iterator: &mut CustomIterator) -> EhResult<f32> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "f32", " via MP: ", "type")?;
+	match type_byte {
+		0xCA => {
+			exception_wrap!(iterator.read_be_f32(), "While reading ", "f32", " via MP")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "f32", ", but got: ", type_byte)
 		}
+	}
+}
+
+pub fn read_f64(iterator: &mut CustomIterator) -> EhResult<f64> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "f64", " via MP: ", "type")?;
+	match type_byte {
+		0xCB => {
+			exception_wrap!(iterator.read_be_f64(), "While reading ", "f64", " via MP")
+		},
+		_ => {
+			exception!("Expected MP type, that would fit ", "f64", ", but got: ", type_byte)
+		}
+	}
+}
+
+pub fn read_string(iterator: &mut CustomIterator) -> EhResult<String> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "String", " via MP: ", "type")?;
+	match type_byte {
+		0xA0..=0xB9 => {
+			exception_wrap!(read_string_len(iterator, (type_byte - 0xA0) as usize), "While reading MP ", "String", " via MP: ", "fix")
+		},
 		0xD9 => {
-			iterator.skip();
-			Ok(Some(exception_wrap!(read_string_8(iterator), "While automatically reading a 8 bit prefixed length string")?))
-		}
+			let length = exception_wrap!(iterator.next(), "While reading ", "String", " via MP: ", "8 length")?;
+			exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "String", " via MP: ", "8")
+		},
 		0xDA => {
-			iterator.skip();
-			Ok(Some(exception_wrap!(read_string_16(iterator), "While automatically reading a 16 bit prefixed length string")?))
-		}
+			let length = exception_wrap!(iterator.read_be_u16(), "While reading ", "String", " via MP: ", "16 length")?;
+			exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "String", " via MP: ", "16")
+		},
+		0xDB => {
+			let length = exception_wrap!(iterator.read_be_u32(), "While reading ", "String", " via MP: ", "32 length")?;
+			exception_wrap!(read_string_len(iterator, length as usize), "While reading MP ", "String", " via MP: ", "32")
+		},
 		_ => {
-			exception!("While expecting MP string type, got: ", format!("0x{:X}", type_fml))
+			exception!("Expected MP type, that would fit ", "String", ", but got: ", type_byte)
 		}
 	}
 }
 
-//Boolean:
-
-pub fn read_bool_auto(iterator: &mut CustomIterator) -> EhResult<bool> {
-	let type_fml = exception_wrap!(iterator.next(), "While reading MP bool type/value")?;
-	match type_fml {
+pub fn read_bool(iterator: &mut CustomIterator) -> EhResult<bool> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "bool", " via MP: ", "type")?;
+	match type_byte {
 		0xC2 => Ok(false),
 		0xC3 => Ok(true),
-		_ => exception!("While expecting MP boolean type, got: ", format!("0x{:X}", type_fml))
+		_ => {
+			exception!("Expected MP type, that would fit ", "bool", ", but got: ", type_byte)
+		}
 	}
 }
 
-//Binary:
-
-pub fn read_binary_len(iterator: &mut CustomIterator, length: usize) -> EhResult<Vec<u8>> {
-	exception_wrap!(iterator.read_bytes(length), "While reading MP binary bytes")
-}
-
-pub fn read_binary_8(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
-	let length = exception_wrap!(read_int_8(iterator), "While reading 8 bit length prefix MP binary")? as usize;
-	read_binary_len(iterator, length)
-}
-
-pub fn read_binary_16(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
-	let length = exception_wrap!(read_int_16(iterator), "While reading 16 bit length prefix MP binary")? as usize;
-	read_binary_len(iterator, length)
-}
-
-pub fn read_binary_32(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
-	let length = exception_wrap!(read_int_32(iterator), "While reading 32 bit length prefix MP binary")? as usize;
-	read_binary_len(iterator, length)
-}
-
-pub fn read_binary_auto(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8>>> {
-	let type_fml = exception_wrap!(iterator.next(), "While reading MP binary type")?;
-	match type_fml {
-		0xC0 => {
-			Ok(None)
+//Use the maximum value u32 as return type.
+pub fn read_array(iterator: &mut CustomIterator) -> EhResult<u32> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "array", " via MP: ", "type")?;
+	match type_byte {
+		0x90..=0x9F => {
+			Ok((type_byte - 0x90) as u32)
 		}
-		0xC4 => {
-			Ok(Some(exception_wrap!(read_binary_8(iterator), "While automatically reading 8 bit MP binary")?))
+		0xDC => {
+			Ok(exception_wrap!(iterator.read_be_u16(), "While reading ", "array", " via MP: ", "array 16")? as u32)
 		}
-		0xC5 => {
-			Ok(Some(exception_wrap!(read_binary_16(iterator), "While automatically reading 16 bit MP binary")?))
-		}
-		0xC6 => {
-			Ok(Some(exception_wrap!(read_binary_32(iterator), "While automatically reading 32 bit MP binary")?))
+		0xDD => {
+			exception_wrap!(iterator.read_be_u32(), "While reading ", "array", " via MP: ", "array 32")
 		}
 		_ => {
-			exception!("While expecting MP binary type, got: ", format!("0x{:X}", type_fml))
+			exception!("Expected MP type, that would fit ", "array", ", but got: ", type_byte)
+		}
+	}
+}
+
+//Use the maximum value u32 as return type.
+pub fn read_map(iterator: &mut CustomIterator) -> EhResult<u32> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "map", " via MP: ", "type")?;
+	match type_byte {
+		0x80..=0x8F => {
+			Ok((type_byte - 0x80) as u32)
+		}
+		0xDE => {
+			Ok(exception_wrap!(iterator.read_be_u16(), "While reading ", "map", " via MP: ", "map 16")? as u32)
+		}
+		0xDF => {
+			exception_wrap!(iterator.read_be_u32(), "While reading ", "map", " via MP: ", "map 32")
+		}
+		_ => {
+			exception!("Expected MP type, that would fit ", "map", ", but got: ", type_byte)
+		}
+	}
+}
+
+pub fn read_bytes(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "bytes", " via MP: ", "type")?;
+	match type_byte {
+		0xC4 => {
+			let length = exception_wrap!(iterator.next(), "While reading ", "bytes", " via MP: ", "8 length")? as usize;
+			exception_wrap!(read_bytes_len(iterator, length), "While reading ", "bytes", " via MP: ", "8 bytes")
+		}
+		0xC5 => {
+			let length = exception_wrap!(iterator.read_be_u16(), "While reading ", "bytes", " via MP: ", "8 length")? as usize;
+			exception_wrap!(read_bytes_len(iterator, length), "While reading ", "bytes", " via MP: ", "8 bytes")
+		}
+		0xC6 => {
+			let length = exception_wrap!(iterator.read_be_u32(), "While reading ", "bytes", " via MP: ", "8 length")? as usize;
+			exception_wrap!(read_bytes_len(iterator, length), "While reading ", "bytes", " via MP: ", "8 bytes")
+		}
+		_ => {
+			exception!("Expected MP type, that would fit ", "bytes", ", but got: ", type_byte)
 		}
 	}
 }

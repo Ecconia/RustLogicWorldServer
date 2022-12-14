@@ -11,35 +11,29 @@ pub struct DiscoveryRequest {
 
 impl DiscoveryRequest {
 	pub fn parse(iterator: &mut CustomIterator) -> EhResult<DiscoveryRequest> {
-		let packet_id = exception_wrap!(mp_reader::read_int_auto(iterator), "While reading discovery packet id")?;
+		let packet_id = exception_wrap!(mp_reader::read_u32(iterator), "While reading discovery packet id")?;
 		if packet_id != PacketIDs::DiscoveryRequest.id() {
 			return exception!("Discovery packet has wrong packet id: ", packet_id);
 		}
-		let map_size = exception_wrap!(mp_reader::read_map_auto(iterator), "While reading discovery packet entry map count")?;
+		let map_size = exception_wrap!(mp_reader::read_map(iterator), "While reading discovery packet entry map count")?;
 		if map_size != 2 {
 			return exception!("Discovery packet has wrong map size: ", map_size, " (should be ", 2, ")");
 		}
 		//Intention to connect:
-		let key = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet key 'ForConnection'")?, {
-			exception!("Discovery packet has first map key not set")
-		});
+		let key = exception_wrap!(mp_reader::read_string(iterator), "While reading discovery packet key 'ForConnection'")?;
 		if String::from("ForConnection").ne(&key) {
 			return exception!("Discovery packet has wrong first map key: ", key, " (should be ", "ForConnection", ")");
 		}
 		
-		let intention_to_connect = exception_wrap!(mp_reader::read_bool_auto(iterator), "While reading discovery packet bool 'intention to connect'")?;
+		let intention_to_connect = exception_wrap!(mp_reader::read_bool(iterator), "While reading discovery packet bool 'intention to connect'")?;
 		log_debug!("Wants to connect: ", intention_to_connect);
 		
-		let key = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet key 'RequestGUID'")?, {
-			exception!("Discovery packet has second map key not set")
-		});
+		let key = exception_wrap!(mp_reader::read_string(iterator), "While reading discovery packet key 'RequestGUID'")?;
 		if String::from("RequestGUID").ne(&key) {
 			return exception!("Discovery packet has wrong second map key: ", key, " (should be ", "RequestGUID", ")");
 		}
 		
-		let request_uid = unwrap_some_or_return!(exception_wrap!(mp_reader::read_string_auto(iterator), "While reading discovery packet GUID string")?, {
-			exception!("Discovery packet has second value not set")
-		});
+		let request_uid = exception_wrap!(mp_reader::read_string(iterator), "While reading discovery packet GUID string")?;
 		log_debug!("Request UUID is: ", request_uid);
 		
 		if iterator.has_more() {
