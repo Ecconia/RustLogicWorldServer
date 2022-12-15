@@ -7,11 +7,13 @@ pub mod network {
 	
 	pub mod packets {
 		pub mod packet_ids;
+		pub mod packet_tools;
 		
 		pub mod c2s {
 			pub mod discovery_request;
 			pub mod connection_established;
 			pub mod connection_approval;
+			pub mod player_position;
 		}
 		
 		pub mod s2c {

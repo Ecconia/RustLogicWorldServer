@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::network::packets::packet_tools::*;
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_ids::PacketIDs;
@@ -36,9 +37,7 @@ impl DiscoveryRequest {
 		let request_uid = exception_wrap!(mp_reader::read_string(iterator), "While reading discovery packet GUID string")?;
 		log_debug!("Request UUID is: ", request_uid);
 		
-		if iterator.has_more() {
-			log_warn!("DiscoveryRequest packet has more bytes than expected, ", iterator.remaining(), " remaining bytes.");
-		}
+		expect_end_of_packet!(iterator, "DiscoveryRequest");
 		
 		Ok(DiscoveryRequest {
 			request_uid,

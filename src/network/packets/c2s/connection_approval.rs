@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::network::packets::packet_tools::*;
 
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_ids::PacketIDs;
@@ -21,11 +22,7 @@ impl ConnectionApproval {
 			return exception!("Connect packet packet has wrong packet id: ", packet_id);
 		}
 		
-		let entry_count = exception_wrap!(mp_reader::read_array(iterator), "While reading connect packet entry count")?;
-		if entry_count != 6 {
-			return exception!("Connect packet has wrong entry count: ", entry_count, " (should be ", 6, ")");
-		}
-		
+		expect_array!(iterator, "ConnectionApproval", "main content", 6);
 		let mod_count = exception_wrap!(mp_reader::read_array(iterator), "While reading connect packet mod count")?;
 		log_debug!("Mod count: ", mod_count);
 		let mut mods = Vec::new();
@@ -35,10 +32,7 @@ impl ConnectionApproval {
 			mods.push(mod_id);
 		}
 		
-		let user_option_count = exception_wrap!(mp_reader::read_array(iterator), "While reading connect packet user option count")?;
-		if user_option_count != 1 {
-			return exception!("Connect packet has wrong user option count: ", user_option_count, " (should be ", 1, ")");
-		}
+		expect_array!(iterator, "ConnectionApproval", "user option", 1);
 		let username = exception_wrap!(mp_reader::read_string(iterator), "While reading connect packet username")?;
 		log_debug!("Username: ", username);
 		
@@ -51,9 +45,7 @@ impl ConnectionApproval {
 		log_debug!("HailPayload: ", format!("{:?}", hail_payload));
 		log_debug!("HailSignature: ", format!("{:?}", hail_signature));
 		
-		if iterator.has_more() {
-			log_warn!("ConnectionApproval packet has more bytes than expected, ", iterator.remaining(), " remaining bytes.");
-		}
+		expect_end_of_packet!(iterator, "ConnectionApproval");
 		
 		Ok(ConnectionApproval {
 			username,

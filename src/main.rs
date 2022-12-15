@@ -17,6 +17,7 @@ use network::message_pack::reader as mp_reader;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::c2s::connection_established::ConnectionEstablished;
+use rust_potato_server::network::packets::c2s::player_position::PlayerPosition;
 use rust_potato_server::network::packets::packet_ids::PacketIDs;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
@@ -79,6 +80,8 @@ fn handle_user_packet(
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(it), "While reading user packet id"));
 	it.pointer_restore(pointer_restore);
 	
+	//TODO: Match statement is impossible on the stable branch of Rust, as the 'const {}'
+	// feature is not yet added, to make my IDs part of the match pattern.
 	if packet_id == PacketIDs::ConnectionEstablished.id() {
 		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
 		unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(it), "While parsing ConnectionEstablished packet"));
@@ -92,6 +95,9 @@ fn handle_user_packet(
 		log_debug!("The packet about to be sent is ", packet_buffer.len(), " bytes long");
 		
 		server.send_to(address, packet_buffer);
+	} else if packet_id == PacketIDs::PlayerPosition.id() {
+		log_info!("[UserPacket] Type: PlayerPositionPacket");
+		unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(it), "While parsing PlayerPosition packet"));
 	} else {
 		log_warn!("Warning: Received client packet with unknown type ", packet_id);
 		mp_pretty_print_packet(it);
