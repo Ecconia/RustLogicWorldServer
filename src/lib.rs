@@ -1,3 +1,9 @@
+pub mod files {
+	pub mod world_data {
+		pub mod world_file_parser;
+	}
+}
+
 pub mod network {
 	pub mod message_pack {
 		pub mod pretty_printer;

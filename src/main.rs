@@ -26,6 +26,10 @@ use crate::network::message_pack::pretty_printer::pretty_print_packet as mp_pret
 fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
 	
+	log_info!("Starting file reading!");
+	unwrap_or_print_return!(rust_potato_server::files::world_data::world_file_parser::load_world());
+	
+	log_info!("Starting network socket!");
 	let mut rand = rand::thread_rng();
 	let random_unique_id = rand.gen();
 	let mut server = unwrap_or_print_return!(exception_wrap!(ServerInstance::start(

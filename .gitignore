@@ -1,6 +1,6 @@
 # Rust/Cargo:
 /target/
-#For now include this file, it can be added later.
+# For now include this file, it can be added later.
 /Cargo.lock
 
 # Idea:
@@ -8,3 +8,8 @@
 # Sublime Text:
 /*.sublime-project
 /*.sublime-workspace
+# VSCode:
+/*.code-workspace
+
+# Project files:
+/data/

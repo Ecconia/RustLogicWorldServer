@@ -74,6 +74,17 @@ impl<'a> CustomIterator<'a> {
 		Ok(result)
 	}
 	
+	pub fn read_slice_unchecked(&mut self, amount: usize) -> &[u8] {
+		//If the iterator is exhausted draining it, might cause a call with 0 as amount, then just return an empty vector.
+		if amount == 0 {
+			return &[];
+		}
+		let target_position = self.pointer + amount;
+		let result = &self.buffer[self.pointer..target_position]; //Will panic, if someone used this method without first checking the amount.
+		self.pointer += amount;
+		result
+	}
+	
 	pub fn consume(&mut self) -> Vec<u8> {
 		if self.pointer > self.buffer.len() {
 			return Vec::new(); //We are already out of bounds - however this might have happened.
