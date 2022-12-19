@@ -8,6 +8,7 @@ pub use crate::util::log_formatter::{
 //Exception handling needed everywhere:
 pub use crate::util::error_handling::{
 	unwrap_some_or_return,
+	unwrap_ok_or_return,
 	EhResult,
 	exception,
 	exception_from,

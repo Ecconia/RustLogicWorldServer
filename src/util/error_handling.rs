@@ -18,17 +18,23 @@ macro_rules! _unwrap_some_or_return {
 pub use _unwrap_some_or_return as unwrap_some_or_return;
 
 #[macro_export]
-macro_rules! _custom_unwrap_result_or_else {
-	($val:expr, $other:tt) => {
+macro_rules! _unwrap_ok_or_return {
+	($val:expr) => {
 		match $val {
 			Ok(x) => x,
-			Err(message) => {
-				return $other(message)
+			Err(err) => return,
+		}
+	};
+	($val:expr, $other:expr) => {
+		match $val {
+			Ok(x) => x,
+			Err(error) => {
+				return $other(error)
 			}
 		}
 	};
 }
-pub use _custom_unwrap_result_or_else as custom_unwrap_result_or_else;
+pub use _unwrap_ok_or_return as unwrap_ok_or_return;
 
 // ### New system: #############
 
