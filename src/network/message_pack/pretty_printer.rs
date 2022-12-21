@@ -79,7 +79,7 @@ fn parse_entry(
 ) -> EhResult<()> {
 	let type_fml = exception_wrap!(iterator.peek(), "While peeking next expected type byte")?;
 	match type_fml {
-		0x00..=0x7f => {
+		0x00..=0x7F => {
 			//Positive fix integer:
 			let number = reader::read_pos_int_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Int", "PosFixInt", number);

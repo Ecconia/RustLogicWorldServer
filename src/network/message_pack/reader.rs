@@ -214,7 +214,7 @@ pub fn read_float_64(iterator: &mut CustomIterator) -> EhResult<f64> {
 pub fn read_u8(iterator: &mut CustomIterator) -> EhResult<u8> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u8", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			Ok(type_byte)
 		},
 		0xCC => {
@@ -229,7 +229,7 @@ pub fn read_u8(iterator: &mut CustomIterator) -> EhResult<u8> {
 pub fn read_u16(iterator: &mut CustomIterator) -> EhResult<u16> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u16", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			Ok(type_byte as u16)
 		},
 		0xCC => {
@@ -247,7 +247,7 @@ pub fn read_u16(iterator: &mut CustomIterator) -> EhResult<u16> {
 pub fn read_u32(iterator: &mut CustomIterator) -> EhResult<u32> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u32", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			Ok(type_byte as u32)
 		},
 		0xCC => {
@@ -268,7 +268,7 @@ pub fn read_u32(iterator: &mut CustomIterator) -> EhResult<u32> {
 pub fn read_u64(iterator: &mut CustomIterator) -> EhResult<u64> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "u64", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			Ok(type_byte as u64)
 		},
 		0xCC => {
@@ -292,7 +292,7 @@ pub fn read_u64(iterator: &mut CustomIterator) -> EhResult<u64> {
 pub fn read_i8(iterator: &mut CustomIterator) -> EhResult<i8> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i8", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			//Positive fix - fits
 			Ok(type_byte as i8) //Although positive, this fits in a signed byte!
 		},
@@ -321,7 +321,7 @@ pub fn read_i8(iterator: &mut CustomIterator) -> EhResult<i8> {
 pub fn read_i16(iterator: &mut CustomIterator) -> EhResult<i16> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i16", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			//Positive fix - fits
 			Ok(type_byte as i16)
 		},
@@ -358,7 +358,7 @@ pub fn read_i16(iterator: &mut CustomIterator) -> EhResult<i16> {
 pub fn read_i32(iterator: &mut CustomIterator) -> EhResult<i32> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i32", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			//Positive fix - fits
 			Ok(type_byte as i32)
 		},
@@ -403,7 +403,7 @@ pub fn read_i32(iterator: &mut CustomIterator) -> EhResult<i32> {
 pub fn read_i64(iterator: &mut CustomIterator) -> EhResult<i64> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "i64", " via MP: ", "type")?;
 	match type_byte {
-		0..=0x79 => {
+		0..=0x7F => {
 			//Positive fix - fits
 			Ok(type_byte as i64)
 		},
