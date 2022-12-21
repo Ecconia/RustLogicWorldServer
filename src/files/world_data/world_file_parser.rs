@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
+use crate::files::world_data::world_structs::{Component, ComponentAddress, PegAddress, Wire, World};
 use crate::prelude::*;
 use crate::util::custom_iterator::CustomIterator;
 
@@ -8,7 +9,7 @@ const LW_FILE_FOOTER: &str = "redstone sux lol";
 const LW_FILE_HEADER_BYTES: &[u8] = LW_FILE_HEADER.as_bytes();
 const LW_FILE_FOOTER_BYTES: &[u8] = LW_FILE_FOOTER.as_bytes();
 
-pub fn load_world() -> EhResult<()> {
+pub fn load_world() -> EhResult<World> {
 	let current_dir = unwrap_ok_or_return!(std::env::current_dir(), |error| {
 		exception!("Error while getting current directory: ", format!("{:?}", error))
 	});
@@ -54,7 +55,7 @@ pub fn load_world() -> EhResult<()> {
 	return read_from_file(iterator);
 }
 
-fn read_from_file(iterator: &mut CustomIterator) -> EhResult<()> {
+fn read_from_file(iterator: &mut CustomIterator) -> EhResult<World> {
 	if iterator.remaining() < (LW_FILE_FOOTER_BYTES.len() + LW_FILE_HEADER_BYTES.len() + 1) {
 		return exception!("World data file is too small to contain any data (the header+footer+file-version do not fit).");
 	}
@@ -89,6 +90,9 @@ fn read_from_file(iterator: &mut CustomIterator) -> EhResult<()> {
 	}
 	// log_debug!("Got supported save file version ", file_version);
 	let patch_positions = file_version == 5;
+	if patch_positions {
+		log_warn!("Save file version is ", 5, ", converting relative positions to fixed point on the fly.")
+	}
 	
 	let header_data_length = (4 + 4 + 4 + 4) + 1 + (4 + 4);
 	if iterator.remaining() < header_data_length {
@@ -130,50 +134,85 @@ fn read_from_file(iterator: &mut CustomIterator) -> EhResult<()> {
 	
 	//### COMPONENTS: ###########
 	
+	let mut components = Vec::with_capacity(amount_components as usize);
 	for _ in 0..amount_components {
-		let _component_address = exception_wrap!(iterator.read_le_u32(), "While reading component address")?;
-		let _parent_address = exception_wrap!(iterator.read_le_u32(), "While reading component parent address")?;
+		let component_address = exception_wrap!(read_component_address(iterator), "While reading component address")?;
+		//TODO: Check that all parent addresses actually do exists.
+		let parent_address = exception_wrap!(read_component_address(iterator), "While reading component parent address")?;
 		let component_type_index = exception_wrap!(iterator.read_le_u16(), "While reading component type index")?;
 		let _component_type = unwrap_some_or_return!(component_dictionary.get(&component_type_index), {
 			exception!("Component type ID with not entry in component-ID map found: ", component_type_index)
 		});
-		let _relative_position = exception_wrap!(read_position(iterator, patch_positions), "While reading component position")?;
-		let _relative_alignment = exception_wrap!(read_alignment(iterator), "While reading component alignment")?;
+		let relative_position = exception_wrap!(read_position(iterator, patch_positions), "While reading component position")?;
+		let relative_alignment = exception_wrap!(read_alignment(iterator), "While reading component alignment")?;
 		
 		let amount_inputs = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component input amount")?;
+		let mut inputs = Vec::with_capacity(amount_inputs as usize);
 		for _ in 0..amount_inputs {
-			let _circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component input circuit state id")?;
+			let circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component input circuit state id")?;
+			inputs.push(circuit_state_id);
 		}
 		let amount_outputs = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component output amount")?;
+		let mut outputs = Vec::with_capacity(amount_outputs as usize);
 		for _ in 0..amount_outputs {
-			let _circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component output circuit state id")?;
+			let circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading component output circuit state id")?;
+			outputs.push(circuit_state_id);
 		}
 		let amount_custom_data_bytes = exception_wrap!(iterator.read_le_i32(), "While reading custom data byte amount")?;
 		if amount_custom_data_bytes < -1 {
 			return exception!("Expected -1 or higher for component custom data byte amount, got: ", amount_custom_data_bytes);
 		}
-		if amount_custom_data_bytes > 0 {
-			let _custom_data = exception_wrap!(iterator.read_bytes(amount_custom_data_bytes as usize), "While reading component custom data bytes")?;
-		}
+		let custom_data = if amount_custom_data_bytes > 0 {
+			exception_wrap!(iterator.read_bytes(amount_custom_data_bytes as usize), "While reading component custom data bytes")?
+		} else {
+			Vec::with_capacity(0)
+		};
+		components.push(Component {
+			address: component_address,
+			parent: parent_address,
+			type_id: component_type_index,
+			relative_position,
+			relative_alignment,
+			inputs,
+			outputs,
+			custom_data
+		});
 	}
 	
 	//### WIRES: ################
 	
-	let bytes_per_wire = 9+9+4+4;
+	let mut wires = Vec::with_capacity(amount_wires as usize);
+	let bytes_per_wire = 9 + 9 + 4 + 4;
 	for _ in 0..amount_wires {
 		if iterator.remaining() < bytes_per_wire {
 			return exception!("Ran out of bytes while reading wire entry, safe file seems corrupted. Remaining bytes: ", iterator.remaining(), " / ", bytes_per_wire);
 		}
-		let _peg_address_a = exception_wrap!(read_peg_address_unchecked(iterator), "While reading a wires peg address (A)")?;
-		let _peg_address_b = exception_wrap!(read_peg_address_unchecked(iterator), "While reading a wires peg address (B)")?;
-		let _circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading a wires circuit state id")?;
-		let _wire_rotation = iterator.read_le_f32().unwrap(); //Bound check is done above.
+		let peg_address_a = exception_wrap!(read_peg_address_unchecked(iterator), "While reading a wires peg address (A)")?;
+		let peg_address_b = exception_wrap!(read_peg_address_unchecked(iterator), "While reading a wires peg address (B)")?;
+		let circuit_state_id = exception_wrap!(read_semi_unsigned_int(iterator), "While reading a wires circuit state id")?;
+		let wire_rotation = iterator.read_le_f32().unwrap(); //Bound check is done above.
+		wires.push(Wire {
+			peg_a: peg_address_a,
+			peg_b: peg_address_b,
+			circuit_state_id,
+			rotation: wire_rotation,
+		})
 	}
 	
 	//### CIRCUIT STATES: #######
 	
 	let amount_of_bytes = exception_wrap!(read_semi_unsigned_int(iterator), "While reading amount of circuit state bytes")?;
-	exception_wrap!(iterator.read_bytes(amount_of_bytes as usize), "While reading circuit state bytes")?;
+	let mut circuit_states = Vec::with_capacity(amount_of_bytes as usize * 8);
+	for byte in exception_wrap!(iterator.read_bytes(amount_of_bytes as usize), "While reading circuit state bytes")? {
+		circuit_states.push(byte & 0b00000001 != 0);
+		circuit_states.push(byte & 0b0000001 != 0);
+		circuit_states.push(byte & 0b000001 != 0);
+		circuit_states.push(byte & 0b00001 != 0);
+		circuit_states.push(byte & 0b0001 != 0);
+		circuit_states.push(byte & 0b001 != 0);
+		circuit_states.push(byte & 0b01 != 0);
+		circuit_states.push(byte & 0b1 != 0);
+	}
 	
 	if iterator.remaining() != LW_FILE_FOOTER_BYTES.len() {
 		return exception!("Expected to have read all bytes inside of world file, with only the footer being left over. But have ", iterator.remaining(), " / ", LW_FILE_FOOTER_BYTES.len(), " left.");
@@ -181,15 +220,31 @@ fn read_from_file(iterator: &mut CustomIterator) -> EhResult<()> {
 	
 	log_debug!("Finished reading the world file.");
 	
-	Ok(())
+	Ok(World {
+		component_id_map: component_dictionary,
+		components,
+		wires,
+		circuit_states,
+	})
 }
 
 //Byte count: 9
-fn read_peg_address_unchecked(iterator: &mut CustomIterator) -> EhResult<(bool, u32, u32)>{
+fn read_peg_address_unchecked(iterator: &mut CustomIterator) -> EhResult<PegAddress> {
 	let is_input = exception_wrap!(read_bool_unchecked(iterator), "While reading peg address type bool")?;
-	let component_address = exception_wrap!(iterator.read_le_u32(), "While reading peg address component address")?;
+	let component_address = exception_wrap!(read_component_address(iterator), "While reading peg address component address")?;
 	let peg_index = exception_wrap!(read_semi_unsigned_int(iterator), "While reading peg index")?;
-	Ok((is_input, component_address, peg_index))
+	Ok(PegAddress {
+		is_input,
+		component_address,
+		peg_index,
+	})
+}
+
+fn read_component_address(iterator: &mut CustomIterator) -> EhResult<ComponentAddress> {
+	let component_address = exception_wrap!(iterator.read_le_u32(), "While reading component address")?;
+	Ok(ComponentAddress {
+		id: component_address,
+	})
 }
 
 fn read_bool_unchecked(iterator: &mut CustomIterator) -> EhResult<bool> {

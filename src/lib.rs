@@ -1,6 +1,7 @@
 pub mod files {
 	pub mod world_data {
 		pub mod world_file_parser;
+		pub mod world_structs;
 	}
 }
 

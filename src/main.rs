@@ -15,6 +15,7 @@ use network::packets::s2c::discovery_response::DiscoveryResponse;
 use network::packets::c2s::connection_approval::ConnectionApproval;
 use network::message_pack::reader as mp_reader;
 use lidgren::lidgren_server::ServerInstance;
+use rust_potato_server::files::world_data::world_structs::World;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::c2s::connection_established::ConnectionEstablished;
 use rust_potato_server::network::packets::c2s::player_position::PlayerPosition;
@@ -27,7 +28,7 @@ fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
 	
 	log_info!("Starting file reading!");
-	unwrap_or_print_return!(rust_potato_server::files::world_data::world_file_parser::load_world());
+	let mut world = unwrap_or_print_return!(rust_potato_server::files::world_data::world_file_parser::load_world());
 	
 	log_info!("Starting network socket!");
 	let mut rand = rand::thread_rng();
@@ -59,7 +60,7 @@ fn main() {
 					}
 					DataType::Data => {
 						log_debug!("=> Data!");
-						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data);
+						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data, &mut world);
 					}
 				}
 			}
@@ -77,6 +78,7 @@ fn handle_user_packet(
 	server: &mut ServerInstance,
 	address: SocketAddr,
 	data: Vec<u8>,
+	world: &mut World,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
 	let it = &mut iterator;
@@ -92,7 +94,7 @@ fn handle_user_packet(
 		
 		//Respond with world packet:
 		
-		let world_initialization_packet = WorldInitializationPacket::simple();
+		let world_initialization_packet = WorldInitializationPacket::simple(world);
 		
 		let mut packet_buffer = Vec::new();
 		world_initialization_packet.write(&mut packet_buffer);
