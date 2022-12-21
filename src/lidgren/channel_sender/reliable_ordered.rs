@@ -12,7 +12,7 @@ const SEQUENCE_NUMBERS: usize = 1024;
 const TIME_BETWEEN_RESENDS: Duration = Duration::from_millis(400);
 
 pub struct ReliablyOrderedSender {
-	packet_queue: VecDeque<Vec<u8>>,
+	packet_queue: VecDeque<(Vec<u8>, bool)>,
 	message_buffer: [Option<EnqueuedMessage>; WINDOW_SIZE],
 	buffer_oldest: u16,
 	buffer_latest: u16,
@@ -36,9 +36,9 @@ impl ReliablyOrderedSender {
 		}
 	}
 	
-	pub fn enqueue_packet(&mut self, data: Vec<u8>) {
+	pub fn enqueue_packet(&mut self, data: Vec<u8>, is_fragment: bool) {
 		log_debug!("Enqueued packet with ", data.len(), " bytes");
-		self.packet_queue.push_back(data);
+		self.packet_queue.push_back((data, is_fragment));
 	}
 	
 	pub fn send_messages(&mut self, address: &SocketAddr, socket: &mut SocketWrapper) {
@@ -55,7 +55,7 @@ impl ReliablyOrderedSender {
 		while space_to_fill > 0 && !self.packet_queue.is_empty() {
 			log_debug!("+++ Got packet to send! ++++++++++++++++");
 			//Bytes to send:
-			let data = self.packet_queue.pop_front().unwrap(); //There should be no reason for this to be 'None' as it is not empty.
+			let (data, is_fragment) = self.packet_queue.pop_front().unwrap(); //There should be no reason for this to be 'None' as it is not empty.
 			
 			//Next free sequence number of this packet:
 			let sequence_number = self.buffer_latest;
@@ -70,7 +70,7 @@ impl ReliablyOrderedSender {
 			log_debug!("Packet is ", data.len(), " bytes");
 			let mut packet_bytes = Vec::with_capacity(5 + data.len());
 			packet_bytes.push(MessageType::UserReliableOrdered(0).to_index());
-			packet_bytes.push((sequence_number << 1) as u8); //TODO: Add fragment information here - where constructing the message...
+			packet_bytes.push((sequence_number << 1) as u8 | is_fragment as u8);
 			packet_bytes.push((sequence_number >> 7) as u8);
 			let length = data.len() * 8;
 			packet_bytes.push(length as u8);

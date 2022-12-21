@@ -87,6 +87,16 @@ pub fn write_vint_32(buffer: &mut Vec<u8>, value: u32) {
 	buffer.push(val as u8);
 }
 
+pub fn vint_length(value: u32) -> u32 {
+	match value {
+		0..=0b00000000000000000000000010000000 => 1,
+		0..=0b00000000000000000100000000000000 => 2,
+		0..=0b00000000001000000000000000000000 => 3,
+		0..=0b00010000000000000000000000000000 => 4,
+		_ => 5,
+	}
+}
+
 pub fn read_string(iterator: &mut CustomIterator) -> EhResult<String> {
 	let length = exception_wrap!(read_vint_32(iterator), "While reading length of string")? as usize;
 	if length == 0 {

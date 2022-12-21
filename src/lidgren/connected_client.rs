@@ -17,6 +17,16 @@ pub struct ConnectedClient {
 	pub channel_handler: Option<ReliableOrderedHandler>,
 	fragment_map: HashMap<u32, FragmentData>,
 	channel_sender: ReliablyOrderedSender,
+	fragment_group_index: u32,
+}
+
+macro_rules! vint_size {
+	($a:expr) => {
+		lg_formatter::vint_length($a)
+	};
+	($a:expr, $b:expr) => {
+		lg_formatter::vint_length($a) + lg_formatter::vint_length($b)
+	};
 }
 
 impl ConnectedClient {
@@ -26,15 +36,83 @@ impl ConnectedClient {
 			channel_handler: None,
 			fragment_map: HashMap::new(),
 			channel_sender: ReliablyOrderedSender::new(),
+			fragment_group_index: 1, //Just start at 1, 0 is probably possible too.
 		}
 	}
 	
 	pub fn send_to(&mut self, data: Vec<u8>) {
-		if (data.len() + 5) > 1408 {
-			//TODO: Enqueue fragmented messages...
-			panic!("Packet too big to be sent: ({} + 5) / {} GOT TO IMPLEMENT FRAGMENTING!", data.len(), 1408);
+		if (data.len() + 5) <= 1408 {
+			self.channel_sender.enqueue_packet(data, false);
+			return;
 		}
-		self.channel_sender.enqueue_packet(data);
+		
+		//### Send as fragment: ####################
+		
+		if data.len() * 8 >= i32::MAX as usize {
+			//Message says it all - if for any weird reasons we get a packet with 268MB (268.435.455 bytes) things are doomed :D
+			panic!("Attempted to send a packet with way too many 'bits' - Lidgren is using signed ints internally, so the amount of bytes to be sent won't fit that - packet cannot be delivered! Size: {} (<- bytes, for bits *8)", data.len());
+		}
+		
+		let fragment_group_index = self.fragment_group_index;
+		self.fragment_group_index += 1;
+		if self.fragment_group_index >= u16::MAX as u32 {
+			self.fragment_group_index = 1; //Lidgren does for some reasons not allow more than 2 bytes for the index.
+		}
+		let fragment_total_bits = data.len() as u32 * 8;
+		let constant_header_size = vint_size!(fragment_group_index, fragment_total_bits);
+		let maximum_data_bytes = 1408 - (5 + constant_header_size);
+		
+		let (chunk_size, chunk_count) = figure_out_chunk_stuff(maximum_data_bytes, data.len() as u32);
+		let mut start = 0_usize;
+		let mut end = chunk_size as usize;
+		
+		let mut header = Vec::with_capacity(constant_header_size as usize + 5);
+		lg_formatter::write_vint_32(&mut header, fragment_group_index);
+		lg_formatter::write_vint_32(&mut header, fragment_total_bits);
+		lg_formatter::write_vint_32(&mut header, chunk_size);
+		let capacity = chunk_size as usize + header.len() + vint_size!(chunk_count) as usize;
+		
+		for index in 0..(chunk_count - 1) {
+			let mut new_data = Vec::with_capacity(capacity);
+			new_data.extend(header.iter());
+			lg_formatter::write_vint_32(&mut new_data, index);
+			new_data.extend(data[start..end].iter());
+			start = end;
+			end += chunk_size as usize;
+			self.channel_sender.enqueue_packet(new_data, true);
+		}
+		{
+			let mut new_data = Vec::with_capacity(capacity);
+			new_data.extend(header.iter());
+			lg_formatter::write_vint_32(&mut new_data, chunk_count - 1);
+			new_data.extend(data[start..].iter());
+			self.channel_sender.enqueue_packet(new_data, true);
+		}
+		return;
+		
+		macro_rules! get_chunk_amount {
+			($data_bytes:expr, $chunk_size:expr) => {{
+				let mut temp = $data_bytes / $chunk_size;
+				if temp * $chunk_size < $data_bytes {
+					temp += 1;
+				}
+				temp
+			}}
+		}
+		
+		fn figure_out_chunk_stuff(max_packet_bytes: u32, data_bytes: u32) -> (u32, u32) {
+			let mut max_chunk_size = max_packet_bytes - 2; //2 stands for the two extra values in the fragment header, assuming they are as small as can be.
+			let mut min_chunk_amount = get_chunk_amount!(data_bytes, max_chunk_size);
+			
+			let mut actual_header_size = vint_size!(max_chunk_size, min_chunk_amount);
+			while max_packet_bytes >= (max_chunk_size + actual_header_size) {
+				max_chunk_size -= 1;
+				min_chunk_amount = get_chunk_amount!(data_bytes, max_chunk_size);
+				actual_header_size = vint_size!(max_chunk_size, min_chunk_amount);
+			}
+			
+			(max_chunk_size, min_chunk_amount)
+		}
 	}
 	
 	pub fn received_acknowledge(&mut self, sequence_id: u16) {
