@@ -86,27 +86,29 @@ fn handle_user_packet(
 	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(it), "While reading user packet id"));
 	it.pointer_restore(pointer_restore);
 	
-	//TODO: Match statement is impossible on the stable branch of Rust, as the 'const {}'
-	// feature is not yet added, to make my IDs part of the match pattern.
-	if packet_id == PacketIDs::ConnectionEstablished.id() {
-		log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
-		unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(it), "While parsing ConnectionEstablished packet"));
-		
-		//Respond with world packet:
-		
-		let world_initialization_packet = WorldInitializationPacket::simple(world);
-		
-		let mut packet_buffer = Vec::new();
-		world_initialization_packet.write(&mut packet_buffer);
-		log_debug!("The packet about to be sent is ", packet_buffer.len(), " bytes long");
-		
-		server.send_to(address, packet_buffer);
-	} else if packet_id == PacketIDs::PlayerPosition.id() {
-		log_info!("[UserPacket] Type: PlayerPositionPacket");
-		unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(it), "While parsing PlayerPosition packet"));
-	} else {
-		log_warn!("Warning: Received client packet with unknown type ", packet_id);
-		mp_pretty_print_packet(it);
+	match PacketIDs::from_u32(packet_id) {
+		Some(PacketIDs::ConnectionEstablished) => {
+			log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
+			unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(it), "While parsing ConnectionEstablished packet"));
+			
+			//Respond with world packet:
+			
+			let world_initialization_packet = WorldInitializationPacket::simple(world);
+			
+			let mut packet_buffer = Vec::new();
+			world_initialization_packet.write(&mut packet_buffer);
+			log_debug!("The packet about to be sent is ", packet_buffer.len(), " bytes long");
+			
+			server.send_to(address, packet_buffer);
+		}
+		Some(PacketIDs::PlayerPosition) => {
+			log_info!("[UserPacket] Type: PlayerPositionPacket");
+			unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(it), "While parsing PlayerPosition packet"));
+		}
+		_ => {
+			log_warn!("Warning: Received client packet with unknown type ", packet_id);
+			mp_pretty_print_packet(it);
+		}
 	}
 }
 
