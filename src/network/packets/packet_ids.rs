@@ -20,12 +20,12 @@ pub enum PacketIDs {
 	
 	//### Building: ###
 	//Chat:
-	ChatMessageSent = 2, //C2S
+	ChatMessageSent = 3, //C2S
 	ChatMessageBroadcast = 20, //S2Broadcast
-	//Command
+	//Command:
 	RunCommand = 14, //C2S
 	//Building:
-	BuildingRequest = 3, //C2S
+	BuildingRequest = 2, //C2S
 	BuildActionReceipt = 19, //S2C: Answer to build request
 	WorldUpdate = 30, //S2Broadcast: Broadcast world changes
 	//ExtraData:

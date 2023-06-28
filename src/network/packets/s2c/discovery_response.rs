@@ -16,7 +16,7 @@ pub struct DiscoveryResponse {
 impl DiscoveryResponse {
 	pub fn simple(uid: String, max_player_amount: u32, requires_password: bool, requires_verification: bool) -> DiscoveryResponse {
 		DiscoveryResponse {
-			version: String::from("0.91.0.664"),
+			version: String::from("0.91.1.49"),
 			request_uid: uid,
 			has_discovery_info: true,
 			challenge: None,
