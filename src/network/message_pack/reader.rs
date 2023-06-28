@@ -480,7 +480,7 @@ pub fn read_f64(iterator: &mut CustomIterator) -> EhResult<f64> {
 pub fn read_string(iterator: &mut CustomIterator) -> EhResult<String> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "String", " via MP: ", "type")?;
 	match type_byte {
-		0xA0..=0xB9 => {
+		0xA0..=0xBF => {
 			exception_wrap!(read_string_len(iterator, (type_byte - 0xA0) as usize), "While reading MP ", "String", " via MP: ", "fix")
 		},
 		0xD9 => {
