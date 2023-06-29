@@ -16,11 +16,13 @@ pub struct ConnectionApproval {
 }
 
 impl ConnectionApproval {
-	pub fn parse(iterator: &mut CustomIterator) -> EhResult<ConnectionApproval> {
-		let packet_id = exception_wrap!(mp_reader::read_u32(iterator), "While reading connect packet id")?;
-		if packet_id != PacketIDs::ConnectionApproval.id() {
-			return exception!("Connect packet packet has wrong packet id: ", packet_id);
-		}
+	pub fn validate_packet_id(iterator: &mut CustomIterator) -> EhResult<()>{
+		expect_packet_id!(iterator, "connection approval", PacketIDs::ConnectionApproval);
+		Ok(())
+	}
+	
+	pub fn parse(mut iterator: CustomIterator) -> EhResult<ConnectionApproval> {
+		let iterator = &mut iterator;
 		
 		expect_array!(iterator, "ConnectionApproval", "main content", 6);
 		let mod_count = exception_wrap!(mp_reader::read_array(iterator), "While reading connect packet mod count")?;

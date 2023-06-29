@@ -118,7 +118,8 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(&mut iterator), "While parsing DiscoveryRequest packet"));
+	unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::validate_packet_id(&mut iterator), "While validating DiscoveryRequest packet ID"));
+	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(iterator), "While parsing DiscoveryRequest packet"));
 	
 	//Answer:
 	
@@ -140,7 +141,8 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::create(&data[..]);
-	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(&mut iterator), "While parsing ConnectionApproval packet"));
+	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::validate_packet_id(&mut iterator), "While validating ConnectionApproval packet ID"));
+	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(iterator), "While parsing ConnectionApproval packet"));
 	
 	//Send answer:
 	

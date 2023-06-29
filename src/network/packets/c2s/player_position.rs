@@ -9,11 +9,13 @@ pub struct PlayerPosition {
 }
 
 impl PlayerPosition {
-	pub fn parse(iterator: &mut CustomIterator) -> EhResult<PlayerPosition> {
-		let packet_id = exception_wrap!(mp_reader::read_u32(iterator), "While reading PlayerPosition packet's id")?;
-		if packet_id != PacketIDs::PlayerPosition.id() {
-			return exception!("PlayerPosition packet has wrong packet id: ", packet_id);
-		}
+	pub fn validate_packet_id(iterator: &mut CustomIterator) -> EhResult<()>{
+		expect_packet_id!(iterator, "player position", PacketIDs::PlayerPosition);
+		Ok(())
+	}
+	
+	pub fn parse(mut iterator: CustomIterator) -> EhResult<PlayerPosition> {
+		let iterator = &mut iterator;
 		
 		expect_array!(iterator, "PlayerPosition", "main content", 1);
 		//PlayerPositionData:
