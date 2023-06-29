@@ -80,16 +80,24 @@ fn handle_user_packet(
 	data: Vec<u8>,
 	world: &mut World,
 ) {
-	let mut iterator = CustomIterator::create(&data[..]);
+	let mut header_iterator = CustomIterator::create(&data[..]);
+	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(&mut header_iterator), "While reading user packet id"));
+	let time_before_compression = Instant::now();
+	let uncompressed_bytes = unwrap_or_print_return!(crate::network::packets::compression::try_decompress(&mut header_iterator));
+	let bytes_to_use = if uncompressed_bytes.is_none() {
+		data
+	} else {
+		let duration_ms = (Instant::now() - time_before_compression).as_millis();
+		log_debug!("Decompressed packet in ", duration_ms, "ms");
+		uncompressed_bytes.unwrap()
+	};
+	let mut iterator = CustomIterator::create(&bytes_to_use);
 	let it = &mut iterator;
-	let pointer_restore = it.pointer_save();
-	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(it), "While reading user packet id"));
-	it.pointer_restore(pointer_restore);
 	
 	match PacketIDs::from_u32(packet_id) {
 		Some(PacketIDs::ConnectionEstablished) => {
 			log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
-			unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(it), "While parsing ConnectionEstablished packet"));
+			unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(iterator), "While parsing ConnectionEstablished packet"));
 			
 			//Respond with world packet:
 			
@@ -103,7 +111,7 @@ fn handle_user_packet(
 		}
 		Some(PacketIDs::PlayerPosition) => {
 			log_info!("[UserPacket] Type: PlayerPositionPacket");
-			unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(it), "While parsing PlayerPosition packet"));
+			unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(iterator), "While parsing PlayerPosition packet"));
 		}
 		_ => {
 			log_warn!("Warning: Received client packet with unknown type ", packet_id);
