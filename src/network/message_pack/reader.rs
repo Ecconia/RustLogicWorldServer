@@ -532,6 +532,25 @@ pub fn read_array(iterator: &mut CustomIterator) -> EhResult<u32> {
 }
 
 //Use the maximum value u32 as return type.
+pub fn try_array(iterator: &mut CustomIterator) -> EhResult<Option<u32>> {
+	let type_byte = exception_wrap!(iterator.next(), "While trying ", "array", " via MP: ", "type")?;
+	Ok(match type_byte {
+		0x90..=0x9F => {
+			Some((type_byte - 0x90) as u32)
+		}
+		0xDC => {
+			Some(exception_wrap!(iterator.read_be_u16(), "While reading ", "array", " via MP: ", "array 16")? as u32)
+		}
+		0xDD => {
+			Some(exception_wrap!(iterator.read_be_u32(), "While reading ", "array", " via MP: ", "array 32")?)
+		}
+		_ => {
+			None
+		}
+	})
+}
+
+//Use the maximum value u32 as return type.
 pub fn read_map(iterator: &mut CustomIterator) -> EhResult<u32> {
 	let type_byte = exception_wrap!(iterator.next(), "While reading ", "map", " via MP: ", "type")?;
 	match type_byte {
@@ -569,4 +588,124 @@ pub fn read_bytes(iterator: &mut CustomIterator) -> EhResult<Vec<u8>> {
 			exception!("Expected MP type, that would fit ", "bytes", ", but got: ", type_byte)
 		}
 	}
+}
+
+pub fn read_ext(iterator: &mut CustomIterator) -> EhResult<(u8, Vec<u8>)> {
+	let type_byte = exception_wrap!(iterator.next(), "While reading ", "ext", " via MP: ", "type")?;
+	match type_byte {
+		0xC7 => {
+			//Ext 8
+			let length = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "Ext8 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "Ext8 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading ", "ext", "via MP: ", "Ext8 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xC8 => {
+			//Ext 16
+			let length = exception_wrap!(iterator.read_be_u16(), "While reading ", "ext", "via MP: ", "Ext16 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "Ext16 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading ", "ext", "via MP: ", "Ext16 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xC9 => {
+			//Ext 32
+			let length = exception_wrap!(iterator.read_be_u32(), "While reading ", "ext", "via MP: ", "Ext32 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "Ext32 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading ", "ext", "via MP: ", "Ext32 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xD4 => {
+			//Fix Ext 1
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "FixExt1 type")?;
+			let data = exception_wrap!(iterator.read_bytes(1), "While reading ", "ext", "via MP: ", "FixExt1 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xD5 => {
+			//Fix Ext 2
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "FixExt2 type")?;
+			let data = exception_wrap!(iterator.read_bytes(2), "While reading ", "ext", "via MP: ", "FixExt2 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xD6 => {
+			//Fix Ext 4
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "FixExt4 type")?;
+			let data = exception_wrap!(iterator.read_bytes(4), "While reading ", "ext", "via MP: ", "FixExt4 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xD7 => {
+			//Fix Ext 8
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "FixExt8 type")?;
+			let data = exception_wrap!(iterator.read_bytes(8), "While reading ", "ext", "via MP: ", "FixExt8 bytes")?;
+			Ok((sub_type, data))
+		}
+		0xD8 => {
+			//Fix Ext 16
+			let sub_type = exception_wrap!(iterator.next(), "While reading ", "ext", "via MP: ", "FixExt16 type")?;
+			let data = exception_wrap!(iterator.read_bytes(16), "While reading ", "ext", "via MP: ", "FixExt16 bytes")?;
+			Ok((sub_type, data))
+		}
+		_ => {
+			exception!("Expected MP type, that would fit ", "ext", ", but got: ", type_byte)
+		}
+	}
+}
+
+pub fn try_ext(iterator: &mut CustomIterator) -> EhResult<Option<(u8, Vec<u8>)>> {
+	let type_byte = exception_wrap!(iterator.next(), "While trying ", "ext", " via MP: ", "type")?;
+	Ok(match type_byte {
+		0xC7 => {
+			//Ext 8
+			let length = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "Ext8 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "Ext8 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While trying ", "ext", "via MP: ", "Ext8 bytes")?;
+			Some((sub_type, data))
+		}
+		0xC8 => {
+			//Ext 16
+			let length = exception_wrap!(iterator.read_be_u16(), "While trying ", "ext", "via MP: ", "Ext16 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "Ext16 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While trying ", "ext", "via MP: ", "Ext16 bytes")?;
+			Some((sub_type, data))
+		}
+		0xC9 => {
+			//Ext 32
+			let length = exception_wrap!(iterator.read_be_u32(), "While trying ", "ext", "via MP: ", "Ext32 length")?;
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "Ext32 type")?;
+			let data = exception_wrap!(iterator.read_bytes(length as usize), "While trying ", "ext", "via MP: ", "Ext32 bytes")?;
+			Some((sub_type, data))
+		}
+		0xD4 => {
+			//Fix Ext 1
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "FixExt1 type")?;
+			let data = exception_wrap!(iterator.read_bytes(1), "While trying ", "ext", "via MP: ", "FixExt1 bytes")?;
+			Some((sub_type, data))
+		}
+		0xD5 => {
+			//Fix Ext 2
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "FixExt2 type")?;
+			let data = exception_wrap!(iterator.read_bytes(2), "While trying ", "ext", "via MP: ", "FixExt2 bytes")?;
+			Some((sub_type, data))
+		}
+		0xD6 => {
+			//Fix Ext 4
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "FixExt4 type")?;
+			let data = exception_wrap!(iterator.read_bytes(4), "While trying ", "ext", "via MP: ", "FixExt4 bytes")?;
+			Some((sub_type, data))
+		}
+		0xD7 => {
+			//Fix Ext 8
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "FixExt8 type")?;
+			let data = exception_wrap!(iterator.read_bytes(8), "While trying ", "ext", "via MP: ", "FixExt8 bytes")?;
+			Some((sub_type, data))
+		}
+		0xD8 => {
+			//Fix Ext 16
+			let sub_type = exception_wrap!(iterator.next(), "While trying ", "ext", "via MP: ", "FixExt16 type")?;
+			let data = exception_wrap!(iterator.read_bytes(16), "While trying ", "ext", "via MP: ", "FixExt16 bytes")?;
+			Some((sub_type, data))
+		}
+		_ => {
+			None
+		}
+	})
 }

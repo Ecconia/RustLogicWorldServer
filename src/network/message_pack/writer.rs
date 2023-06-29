@@ -199,7 +199,7 @@ pub fn write_array_auto(buffer: &mut Vec<u8>, value: u32) {
 
 //Binary:
 
-pub(crate) fn write_binary(buffer: &mut Vec<u8>, value: &Vec<u8>) {
+pub(crate) fn write_binary(buffer: &mut Vec<u8>, value: &[u8]) {
 	let length = value.len();
 	match length {
 		0..=0xFF => {

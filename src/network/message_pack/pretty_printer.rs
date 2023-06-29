@@ -142,7 +142,7 @@ fn parse_entry(
 		0xC7 => {
 			//Ext 8
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(reader::read_int_8(iterator), "While reading 8Ext length")?;
+			let length = exception_wrap!(iterator.next(), "While reading 8Ext length")?;
 			let sub_type = exception_wrap!(iterator.next(), "While reading 8Ext type")?;
 			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 8Ext bytes")?;
 			print_data!(ext prefix_first, "Ext", "8Ext", sub_type, data);
@@ -150,7 +150,7 @@ fn parse_entry(
 		0xC8 => {
 			//Ext 16
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(reader::read_int_16(iterator), "While reading 16Ext length")?;
+			let length = exception_wrap!(iterator.read_be_u16(), "While reading 16Ext length")?;
 			let sub_type = exception_wrap!(iterator.next(), "While reading 16Ext type")?;
 			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 16Ext bytes")?;
 			print_data!(ext prefix_first, "Ext", "16Ext", sub_type, data);
@@ -158,7 +158,7 @@ fn parse_entry(
 		0xC9 => {
 			//Ext 32
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(reader::read_int_32(iterator), "While reading 32Ext length")?;
+			let length = exception_wrap!(iterator.read_be_u32(), "While reading 32Ext length")?;
 			let sub_type = exception_wrap!(iterator.next(), "While reading 32Ext type")?;
 			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 32Ext bytes")?;
 			print_data!(ext prefix_first, "Ext", "32Ext", sub_type, data);
