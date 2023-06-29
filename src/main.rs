@@ -125,7 +125,7 @@ fn handle_discovery(
 	remote_address: SocketAddr,
 	data: Vec<u8>,
 ) {
-	let mut iterator = CustomIterator::create(&data[..]);
+	let mut iterator = CustomIterator::borrow(&data[..]);
 	unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::validate_packet_id(&mut iterator), "While validating DiscoveryRequest packet ID"));
 	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(iterator), "While parsing DiscoveryRequest packet"));
 	
@@ -148,7 +148,7 @@ fn handle_connect(
 	remote_address: SocketAddr,
 	data: Vec<u8>,
 ) {
-	let mut iterator = CustomIterator::create(&data[..]);
+	let mut iterator = CustomIterator::borrow(&data[..]);
 	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::validate_packet_id(&mut iterator), "While validating ConnectionApproval packet ID"));
 	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(iterator), "While parsing ConnectionApproval packet"));
 	

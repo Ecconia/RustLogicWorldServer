@@ -137,7 +137,7 @@ impl ServerInstance {
 			return;
 		}
 		
-		let mut iterator = CustomIterator::create(&self.input_buffer[0..amount_read]);
+		let mut iterator = CustomIterator::borrow(&self.input_buffer[0..amount_read]);
 		
 		while iterator.remaining() >= MESSAGE_HEADER_LENGTH {
 			let header = unwrap_or_print_return!(exception_wrap!(MessageHeader::from_stream(&mut iterator), "While constructing lidgren header"));

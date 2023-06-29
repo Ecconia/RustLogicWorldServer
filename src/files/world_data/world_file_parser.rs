@@ -51,7 +51,7 @@ pub fn load_world() -> EhResult<World> {
 	});
 	log_debug!("Read world with ", data_vec.len(), " bytes");
 	
-	let iterator = &mut CustomIterator::create(&data_vec[..]);
+	let iterator = &mut CustomIterator::borrow(&data_vec[..]);
 	return read_from_file(iterator);
 }
 

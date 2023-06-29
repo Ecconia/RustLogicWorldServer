@@ -29,7 +29,7 @@ fn try_decompress_inner(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8
 		return Ok(None);
 	}
 	let chunk_count = array_size as usize - 1;
-	let extra_bytes_iterator = &mut CustomIterator::create(&whatever_ext_content.1);
+	let extra_bytes_iterator = &mut CustomIterator::borrow(&whatever_ext_content.1);
 	let mut list_of_uncompressed_chunk_sizes = Vec::with_capacity(chunk_count);
 	let mut total_uncompressed_bytes = 0usize;
 	for _ in 0..chunk_count {

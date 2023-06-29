@@ -159,7 +159,7 @@ impl ConnectedClient {
 			return;
 		}
 		//Else we got a fragment to handle, read header:
-		let mut iterator = CustomIterator::create(&data[..]);
+		let mut iterator = CustomIterator::borrow(&data[..]);
 		if iterator.remaining() < 123 {
 			log_warn!("Not enough bytes to read fragment header: ", iterator.remaining(), "/", 122);
 			return;

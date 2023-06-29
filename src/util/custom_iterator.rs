@@ -1,21 +1,87 @@
 use crate::prelude::*;
 
-pub struct CustomIterator<'a> {
+trait DataStorage {
+	fn len(&self) -> usize;
+	fn get(&self, index: usize) -> u8;
+	fn get_range(&self, start: usize, end: usize) -> &[u8];
+}
+
+struct DataBorrower<'a> {
 	buffer: &'a [u8],
+}
+
+impl<'a> DataStorage for DataBorrower<'a> {
+	fn len(&self) -> usize {
+		self.buffer.len()
+	}
+
+	fn get(&self, index: usize) -> u8 {
+		self.buffer[index]
+	}
+
+	fn get_range(&self, start: usize, end: usize) -> &[u8] {
+		&self.buffer[start..end]
+	}
+}
+
+impl<'a> DataBorrower<'a> {
+	fn new(buffer: &'a [u8]) -> Box<dyn DataStorage + 'a> {
+		Box::new(DataBorrower {
+			buffer,
+		})
+	}
+}
+
+struct DataOwner {
+	buffer: Vec<u8>,
+}
+
+impl DataOwner {
+	fn new(buffer: Vec<u8>) -> Box<dyn DataStorage> {
+		Box::new(DataOwner {
+			buffer,
+		})
+	}
+}
+
+impl DataStorage for DataOwner {
+	fn len(&self) -> usize {
+		self.buffer.len()
+	}
+
+	fn get(&self, index: usize) -> u8 {
+		self.buffer[index]
+	}
+
+	fn get_range(&self, start: usize, end: usize) -> &[u8] {
+		&self.buffer[start..end]
+	}
+}
+
+pub struct CustomIterator<'a> {
+	buffer: Box<dyn DataStorage + 'a>,
 	pointer: usize,
 }
 
 //Main iterator functionality:
 impl<'a> CustomIterator<'a> {
-	pub fn create(buffer: &[u8]) -> CustomIterator {
+	fn new(buffer: Box<dyn DataStorage + 'a>) -> CustomIterator<'a> {
 		CustomIterator {
 			buffer,
 			pointer: 0,
 		}
 	}
 	
+	pub fn own(buffer: Vec<u8>) -> CustomIterator<'a> {
+		CustomIterator::new(DataOwner::new(buffer))
+	}
+	
+	pub fn borrow(buffer: &'a [u8]) -> CustomIterator<'a> {
+		CustomIterator::new(DataBorrower::new(buffer))
+	}
+	
 	pub fn next_unchecked(&mut self) -> u8 {
-		let value = self.buffer[self.pointer];
+		let value = self.buffer.get(self.pointer);
 		self.pointer += 1;
 		value
 	}
@@ -24,20 +90,20 @@ impl<'a> CustomIterator<'a> {
 		if self.pointer >= self.buffer.len() {
 			return exception!("Expected more bytes while reading byte, but reached ", self.pointer, "/", self.buffer.len());
 		}
-		let value = self.buffer[self.pointer];
+		let value = self.buffer.get(self.pointer);
 		self.pointer += 1;
 		Ok(value)
 	}
 	
 	pub fn peek_unchecked(&self) -> u8 {
-		self.buffer[self.pointer]
+		self.buffer.get(self.pointer)
 	}
 	
 	pub fn peek(&self) -> EhResult<u8> {
 		if self.pointer >= self.buffer.len() {
 			return exception!("Expected more bytes while peeking, but reached ", self.pointer, "/", self.buffer.len());
 		}
-		Ok(self.buffer[self.pointer])
+		Ok(self.buffer.get(self.pointer))
 	}
 	
 	pub fn remaining(&self) -> usize {
@@ -53,8 +119,8 @@ impl<'a> CustomIterator<'a> {
 		if target_position > self.buffer.len() {
 			return exception!("Expected more bytes while creating sub iterator, but reached (", self.pointer, "+", amount, ")/", self.buffer.len());
 		}
-		let sub_iterator = CustomIterator::create(
-			&self.buffer[self.pointer..target_position],
+		let sub_iterator = CustomIterator::borrow(
+			&self.buffer.get_range(self.pointer, target_position),
 		);
 		self.pointer += amount;
 		Ok(sub_iterator)
@@ -69,7 +135,7 @@ impl<'a> CustomIterator<'a> {
 		if target_position > self.buffer.len() {
 			return exception!("Expected more bytes while reading bytes, but reached (", self.pointer, "+", amount, ")/", self.buffer.len());
 		}
-		let result = self.buffer[self.pointer..target_position].to_vec();
+		let result = self.buffer.get_range(self.pointer, target_position).to_vec();
 		self.pointer += amount;
 		Ok(result)
 	}
@@ -80,7 +146,7 @@ impl<'a> CustomIterator<'a> {
 			return &[];
 		}
 		let target_position = self.pointer + amount;
-		let result = &self.buffer[self.pointer..target_position]; //Will panic, if someone used this method without first checking the amount.
+		let result = &self.buffer.get_range(self.pointer, target_position); //Will panic, if someone used this method without first checking the amount.
 		self.pointer += amount;
 		result
 	}
@@ -90,7 +156,7 @@ impl<'a> CustomIterator<'a> {
 			return Vec::new(); //We are already out of bounds - however this might have happened.
 		}
 		//Else return whatever remains:
-		let result = self.buffer[self.pointer..].to_vec();
+		let result = self.buffer.get_range(self.pointer, self.buffer.len()).to_vec();
 		self.pointer = self.buffer.len(); //And set the point to the end of the buffer.
 		result
 	}
