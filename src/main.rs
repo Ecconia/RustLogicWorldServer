@@ -1,4 +1,3 @@
-use rust_potato_server::network::packets::compression::try_decompress;
 use rust_potato_server::prelude::*;
 
 use std::net::SocketAddr;
@@ -14,7 +13,9 @@ use rust_potato_server::util;
 use network::packets::c2s::discovery_request::DiscoveryRequest;
 use network::packets::s2c::discovery_response::DiscoveryResponse;
 use network::packets::c2s::connection_approval::ConnectionApproval;
+use network::packets::compression::try_decompress;
 use network::message_pack::reader as mp_reader;
+use network::message_pack::pretty_printer::pretty_print_data;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::files::world_data::world_structs::World;
 use rust_potato_server::lidgren::data_types::DataType;
@@ -23,7 +24,6 @@ use rust_potato_server::network::packets::c2s::player_position::PlayerPosition;
 use rust_potato_server::network::packets::packet_ids::PacketIDs;
 use rust_potato_server::network::packets::s2c::world_initialization_packet::WorldInitializationPacket;
 use util::custom_iterator::CustomIterator;
-use crate::network::message_pack::pretty_printer::pretty_print_packet as mp_pretty_print_packet;
 
 fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
@@ -122,7 +122,7 @@ fn handle_user_packet(
 		}
 		_ => {
 			log_warn!("Warning: Received client packet with unknown type ", packet_id);
-			mp_pretty_print_packet(it);
+			pretty_print_data(it);
 		}
 	}
 }

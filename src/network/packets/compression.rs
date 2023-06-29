@@ -43,9 +43,8 @@ fn try_decompress_inner(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8
 	
 	let mut uncompressed_bytes = Vec::<u8>::with_capacity(total_uncompressed_bytes);
 	// let mut pointer = 0;
-	for i in 0..chunk_count {
+	for uncompressed_chunk_size in list_of_uncompressed_chunk_sizes {
 		let compressed_chunk_bytes = exception_wrap!(mp_reader::read_bytes(iterator), "While reading chunk compressed bytes")?;
-		let uncompressed_chunk_size = list_of_uncompressed_chunk_sizes[i];
 		let mut uncompressed_chunk_bytes = vec![0; uncompressed_chunk_size];
 		
 		//Uncompress bytes:

@@ -18,6 +18,18 @@ pub struct ReliablyOrderedSender {
 	buffer_latest: u16,
 }
 
+impl Default for ReliablyOrderedSender {
+	fn default() -> Self {
+		const INIT: Option<EnqueuedMessage> = None;
+		Self {
+			packet_queue: VecDeque::new(),
+			message_buffer: [INIT; WINDOW_SIZE],
+			buffer_oldest: 0,
+			buffer_latest: 0,
+		}
+	}
+}
+
 pub struct EnqueuedMessage {
 	data: Vec<u8>,
 	last_sent: Instant,
@@ -25,17 +37,18 @@ pub struct EnqueuedMessage {
 	acknowledged: bool,
 }
 
-impl ReliablyOrderedSender {
-	pub fn new() -> ReliablyOrderedSender {
-		const INIT: Option<EnqueuedMessage> = None;
-		ReliablyOrderedSender {
-			packet_queue: VecDeque::new(),
-			message_buffer: [INIT; WINDOW_SIZE],
-			buffer_oldest: 0,
-			buffer_latest: 0,
+impl Default for EnqueuedMessage {
+	fn default() -> Self {
+		Self {
+			data: Vec::new(),
+			last_sent: Instant::now(),
+			sent_count: 0,
+			acknowledged: false,
 		}
 	}
-	
+}
+
+impl ReliablyOrderedSender {
 	pub fn enqueue_packet(&mut self, data: Vec<u8>, is_fragment: bool) {
 		log_debug!("Enqueued packet with ", data.len(), " bytes");
 		self.packet_queue.push_back((data, is_fragment));

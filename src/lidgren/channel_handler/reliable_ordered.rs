@@ -16,15 +16,17 @@ pub struct ReliableOrderedHandler {
 	cycle_buffer: [Option<InternalMessage>; WINDOW_SIZE],
 }
 
-impl ReliableOrderedHandler {
-	pub fn new() -> ReliableOrderedHandler {
+impl Default for ReliableOrderedHandler {
+	fn default() -> Self {
 		const DEFAULT: Option<InternalMessage> = None; //Workaround, for the Rust compiler...
-		ReliableOrderedHandler {
+		Self {
 			latest_sequence_index: 0,
 			cycle_buffer: [DEFAULT; WINDOW_SIZE],
 		}
 	}
-	
+}
+
+impl ReliableOrderedHandler {
 	pub fn handle(
 		&mut self,
 		header: MessageHeader,

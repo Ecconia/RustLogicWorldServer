@@ -347,12 +347,10 @@ impl ServerInstance {
 	}
 	
 	pub fn answer_connect(&self, remote_address: &SocketAddr) {
-		let mut result_buffer = Vec::new();
-		result_buffer.push(MessageType::ConnectResponse.to_index());
-		result_buffer.push(0);
-		result_buffer.push(0);
-		result_buffer.push(0);
-		result_buffer.push(0);
+		let mut result_buffer = vec!(
+			MessageType::ConnectResponse.to_index(),
+			0, 0, 0, 0,
+		);
 		
 		lg_formatter::write_string(&mut result_buffer, &self.application_name);
 		lg_formatter::write_int_64(&mut result_buffer, self.server_unique_id);
@@ -371,12 +369,12 @@ impl ServerInstance {
 		let payload_length = discovery_payload.len() * 8;
 		//TODO: panic if payload too large!
 		
-		let mut result_buffer = Vec::new();
-		result_buffer.push(MessageType::DiscoveryResponse.to_index());
-		result_buffer.push(0);
-		result_buffer.push(0);
-		result_buffer.push(payload_length as u8);
-		result_buffer.push((payload_length >> 8) as u8);
+		let mut result_buffer = vec!(
+			MessageType::DiscoveryResponse.to_index(),
+			0, 0,
+			payload_length as u8,
+			(payload_length >> 8) as u8,
+		);
 		
 		result_buffer.extend_from_slice(discovery_payload);
 		

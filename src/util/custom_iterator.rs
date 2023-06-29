@@ -25,7 +25,7 @@ impl<'a> DataStorage for DataBorrower<'a> {
 }
 
 impl<'a> DataBorrower<'a> {
-	fn new(buffer: &'a [u8]) -> Box<dyn DataStorage + 'a> {
+	fn wrap(buffer: &'a [u8]) -> Box<dyn DataStorage + 'a> {
 		Box::new(DataBorrower {
 			buffer,
 		})
@@ -37,7 +37,7 @@ struct DataOwner {
 }
 
 impl DataOwner {
-	fn new(buffer: Vec<u8>) -> Box<dyn DataStorage> {
+	fn wrap(buffer: Vec<u8>) -> Box<dyn DataStorage> {
 		Box::new(DataOwner {
 			buffer,
 		})
@@ -65,19 +65,19 @@ pub struct CustomIterator<'a> {
 
 //Main iterator functionality:
 impl<'a> CustomIterator<'a> {
-	fn new(buffer: Box<dyn DataStorage + 'a>) -> CustomIterator<'a> {
-		CustomIterator {
+	fn new(buffer: Box<dyn DataStorage + 'a>) -> Self {
+		Self {
 			buffer,
 			pointer: 0,
 		}
 	}
 	
 	pub fn own(buffer: Vec<u8>) -> CustomIterator<'a> {
-		CustomIterator::new(DataOwner::new(buffer))
+		CustomIterator::new(DataOwner::wrap(buffer))
 	}
 	
 	pub fn borrow(buffer: &'a [u8]) -> CustomIterator<'a> {
-		CustomIterator::new(DataBorrower::new(buffer))
+		CustomIterator::new(DataBorrower::wrap(buffer))
 	}
 	
 	pub fn next_unchecked(&mut self) -> u8 {
@@ -120,7 +120,7 @@ impl<'a> CustomIterator<'a> {
 			return exception!("Expected more bytes while creating sub iterator, but reached (", self.pointer, "+", amount, ")/", self.buffer.len());
 		}
 		let sub_iterator = CustomIterator::borrow(
-			&self.buffer.get_range(self.pointer, target_position),
+			self.buffer.get_range(self.pointer, target_position),
 		);
 		self.pointer += amount;
 		Ok(sub_iterator)

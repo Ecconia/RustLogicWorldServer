@@ -35,7 +35,7 @@ impl ConnectedClient {
 			remote_address,
 			channel_handler: None,
 			fragment_map: HashMap::new(),
-			channel_sender: ReliablyOrderedSender::new(),
+			channel_sender: ReliablyOrderedSender::default(),
 			fragment_group_index: 1, //Just start at 1, 0 is probably possible too.
 		}
 	}
@@ -134,7 +134,7 @@ impl ConnectedClient {
 	                          message_data_iterator: CustomIterator,
 	) {
 		if self.channel_handler.is_none() {
-			self.channel_handler = Some(ReliableOrderedHandler::new())
+			self.channel_handler = Some(ReliableOrderedHandler::default())
 		}
 		let channel = self.channel_handler.as_mut().unwrap();
 		let mut output_list_to_make_rust_compiler_happy = Vec::new();
