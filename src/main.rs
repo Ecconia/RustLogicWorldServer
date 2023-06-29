@@ -1,3 +1,4 @@
+use rust_potato_server::network::packets::compression::try_decompress;
 use rust_potato_server::prelude::*;
 
 use std::net::SocketAddr;
@@ -74,24 +75,30 @@ fn main() {
 	}
 }
 
+fn get_packet_content_iterator<'a>(data: &'a Vec<u8>) -> EhResult<(u32, CustomIterator<'a>)> {
+	let mut iterator = CustomIterator::borrow(&data[..]);
+	let packet_id = exception_wrap!(mp_reader::read_u32(&mut iterator), "While reading user packet id")?;
+	
+	let decompress_start = Instant::now();
+	let decompress_result = exception_wrap!(try_decompress(&mut iterator), "asdf")?;
+	if let Some(decompressed_bytes) = decompress_result {
+		let duration_ms = (Instant::now() - decompress_start).as_millis();
+		log_debug!("Decompressed packet in ", duration_ms, "ms");
+		Ok((packet_id, CustomIterator::own(decompressed_bytes)))
+	} else {
+		Ok((packet_id, iterator))
+	}
+}
+
 fn handle_user_packet(
 	server: &mut ServerInstance,
 	address: SocketAddr,
 	data: Vec<u8>,
 	world: &mut World,
 ) {
-	let mut header_iterator = CustomIterator::create(&data[..]);
-	let packet_id = unwrap_or_print_return!(exception_wrap!(mp_reader::read_u32(&mut header_iterator), "While reading user packet id"));
-	let time_before_compression = Instant::now();
-	let uncompressed_bytes = unwrap_or_print_return!(crate::network::packets::compression::try_decompress(&mut header_iterator));
-	let bytes_to_use = if uncompressed_bytes.is_none() {
-		data
-	} else {
-		let duration_ms = (Instant::now() - time_before_compression).as_millis();
-		log_debug!("Decompressed packet in ", duration_ms, "ms");
-		uncompressed_bytes.unwrap()
-	};
-	let mut iterator = CustomIterator::create(&bytes_to_use);
+	let (packet_id, mut iterator) = unwrap_or_print_return!(
+		exception_wrap!(get_packet_content_iterator(&data), "While reading LW header of packet")
+	);
 	let it = &mut iterator;
 	
 	match PacketIDs::from_u32(packet_id) {
