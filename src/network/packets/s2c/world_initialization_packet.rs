@@ -35,7 +35,7 @@ impl<'a> WorldInitializationPacket<'a> {
 			}
 			
 			//WorldTypeID:
-			mp_writer::write_string_auto(buffer, Some("MHG.Grasslands"));
+			mp_writer::write_string_auto(buffer, Some("MHG.Gridlands")); //MHG.Grasslands
 			
 			//Components:
 			mp_writer::write_array_auto(buffer, self.world.components.len() as u32); //No components

@@ -69,6 +69,19 @@ pub fn write_float_auto(buffer: &mut Vec<u8>, value: f32) {
 	buffer.push(float_as_bits as u8);
 }
 
+pub fn write_float_64(buffer: &mut Vec<u8>, value: f64) {
+	buffer.push(0xCB);
+	let float_as_bits = value.to_bits();
+	buffer.push((float_as_bits >> 56) as u8);
+	buffer.push((float_as_bits >> 48) as u8);
+	buffer.push((float_as_bits >> 40) as u8);
+	buffer.push((float_as_bits >> 32) as u8);
+	buffer.push((float_as_bits >> 24) as u8);
+	buffer.push((float_as_bits >> 16) as u8);
+	buffer.push((float_as_bits >> 8) as u8);
+	buffer.push(float_as_bits as u8);
+}
+
 //Strings:
 
 pub fn write_string_flex(buffer: &mut Vec<u8>, value: &str) {

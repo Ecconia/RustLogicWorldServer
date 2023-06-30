@@ -3,6 +3,17 @@ pub mod files {
 		pub mod world_file_parser;
 		pub mod world_structs;
 	}
+	pub mod extra_data {
+		pub mod manager;
+		pub mod entries {
+			pub mod display_configuration;
+			pub mod display_configurations_order;
+			pub mod flag_list_order;
+			pub mod simulation_paused;
+			pub mod simulation_speed;
+			pub mod world_type_data;
+		}
+	}
 }
 
 pub mod network {
@@ -22,11 +33,14 @@ pub mod network {
 			pub mod connection_established;
 			pub mod connection_approval;
 			pub mod player_position;
+			pub mod extra_data_request;
+			pub mod extra_data_change;
 		}
 		
 		pub mod s2c {
 			pub mod discovery_response;
 			pub mod world_initialization_packet;
+			pub mod extra_data_update;
 		}
 	}
 }

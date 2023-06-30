@@ -34,3 +34,12 @@ pub struct PegAddress {
 pub struct ComponentAddress {
 	pub id: u32,
 }
+
+//Not directly world, but part of CustomData and (probably) more:
+
+#[derive(Default)]
+pub struct Color24 {
+	pub r: u8,
+	pub g: u8,
+	pub b: u8,
+}

@@ -13,10 +13,13 @@ use rust_potato_server::util;
 use network::packets::c2s::discovery_request::DiscoveryRequest;
 use network::packets::s2c::discovery_response::DiscoveryResponse;
 use network::packets::c2s::connection_approval::ConnectionApproval;
+use network::packets::c2s::extra_data_request::ExtraDataRequest;
+use network::packets::c2s::extra_data_change::ExtraDataChange;
 use network::packets::compression::try_decompress;
 use network::message_pack::reader as mp_reader;
 use network::message_pack::pretty_printer::pretty_print_data;
 use lidgren::lidgren_server::ServerInstance;
+use rust_potato_server::files::extra_data::manager::ExtraDataManager;
 use rust_potato_server::files::world_data::world_structs::World;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::c2s::connection_established::ConnectionEstablished;
@@ -29,6 +32,7 @@ fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
 	
 	log_info!("Starting file reading!");
+	let mut extra_data = ExtraDataManager::default();
 	let mut world = unwrap_or_print_return!(rust_potato_server::files::world_data::world_file_parser::load_world());
 	
 	log_info!("Starting network socket!");
@@ -61,7 +65,7 @@ fn main() {
 					}
 					DataType::Data => {
 						log_debug!("=> Data!");
-						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data, &mut world);
+						handle_user_packet(&mut server, user_packet.remote_address, user_packet.data, &mut world, &mut extra_data);
 					}
 				}
 			}
@@ -95,6 +99,7 @@ fn handle_user_packet(
 	address: SocketAddr,
 	data: Vec<u8>,
 	world: &mut World,
+	extra_data: &mut ExtraDataManager,
 ) {
 	let (packet_id, mut iterator) = unwrap_or_print_return!(
 		exception_wrap!(get_packet_content_iterator(&data), "While reading LW header of packet")
@@ -119,6 +124,16 @@ fn handle_user_packet(
 		Some(PacketIDs::PlayerPosition) => {
 			log_info!("[UserPacket] Type: PlayerPositionPacket");
 			unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(iterator), "While parsing PlayerPosition packet"));
+		}
+		Some(PacketIDs::ExtraDataRequest) => {
+			log_info!("[UserPacket] Type: ExtraDataRequestPacket");
+			let request = unwrap_or_print_return!(exception_wrap!(ExtraDataRequest::parse(iterator), "While parsing ExtraDataRequest packet"));
+			extra_data.handle_request(request, server, address);
+		}
+		Some(PacketIDs::ExtraDataChange) => {
+			log_info!("[UserPacket] Type: ExtraDataChangePacket");
+			let request = unwrap_or_print_return!(exception_wrap!(ExtraDataChange::parse(iterator), "While parsing ExtraDataChange packet"));
+			extra_data.handle_change(request, server, address);
 		}
 		_ => {
 			log_warn!("Warning: Received client packet with unknown type ", packet_id);
