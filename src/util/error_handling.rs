@@ -49,6 +49,9 @@ impl ExceptionDetails {
 	pub fn print(&self) {
 		println!("{}", self.messages.join("\n"));
 	}
+    pub fn new(s: &str) -> Self {
+        Self { messages: vec![s.to_string()] }
+    }
 }
 
 #[macro_export]
