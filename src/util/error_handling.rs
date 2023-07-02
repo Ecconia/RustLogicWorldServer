@@ -46,6 +46,7 @@ pub struct ExceptionDetails {
 }
 
 impl ExceptionDetails {
+	//TODO: Format messages when printing it and allowing different color schemes while doing so (-> print as warn or error)
 	pub fn print(&self) {
 		println!("{}", self.messages.join("\n"));
 	}
@@ -95,7 +96,7 @@ macro_rules! _exception_from {
 		// Not recommended, as it won't add any position details.
 		match $result {
 			Ok(value) => Ok(value),
-			Err(exception) => $crate::util::error_handling::exception!(exception.to_string())
+			Err(exception) => $crate::util::error_handling::exception!(format!("{:?}", exception))
 		}
 	};
 	( $result:expr, $( $while:expr ),+ ) => {

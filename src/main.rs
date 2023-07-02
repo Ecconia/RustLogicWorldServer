@@ -79,7 +79,7 @@ fn main() {
 	}
 }
 
-fn get_packet_content_iterator<'a>(data: &'a Vec<u8>) -> EhResult<(u32, CustomIterator<'a>)> {
+fn get_packet_content_iterator(data: &Vec<u8>) -> EhResult<(u32, CustomIterator)> {
 	let mut iterator = CustomIterator::borrow(&data[..]);
 	let packet_id = exception_wrap!(mp_reader::read_u32(&mut iterator), "While reading user packet id")?;
 	
