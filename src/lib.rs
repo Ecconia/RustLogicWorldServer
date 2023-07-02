@@ -67,6 +67,10 @@ pub mod lidgren {
 }
 
 pub mod util {
+	pub mod succ {
+		pub mod succ_parser;
+	}
+	
 	pub mod error_handling;
 	pub mod custom_iterator;
 	pub mod log_formatter;

@@ -1,6 +1,9 @@
 use crate::prelude::*;
 
 use std::path::{Path, PathBuf};
+use std::fs;
+
+use crate::util::succ::succ_parser;
 
 pub struct WorldFolderAccess {
 	world_folder: PathBuf,
@@ -81,5 +84,33 @@ impl WorldFolderAccess {
 			exception!("Failed to read ", path.to_string_lossy(), ": ", format!("{:?}", error))
 		});
 		Ok(data_vec)
+	}
+	
+	pub fn parse_all_succ_files(&self) -> EhResult<()>{
+		let root_folder = &self.world_folder;
+		
+		let a = &mut vec![root_folder.to_owned()];
+		let b = &mut Vec::new();
+		while !a.is_empty() {
+			for folder_path in a.iter_mut() {
+				for dir_entry in exception_from!(fs::read_dir(folder_path), "While getting folders from directory")? {
+					let dir_entry = exception_from!(dir_entry)?.path();
+					if dir_entry.is_dir() {
+						b.push(dir_entry);
+						continue;
+					}
+					if dir_entry.is_file() && dir_entry.to_string_lossy().ends_with(".succ") {
+						//Process
+						log_info!("Trying to parse: ", &dir_entry.to_string_lossy());
+						let bytes = exception_wrap!(Self::load_file(&dir_entry), "While loading SUCC file bytes from disk")?;
+						exception_wrap!(succ_parser::debug_succ_file(&bytes), "While trying to parse random SUCC file")?;
+					}
+				}
+			}
+			a.clear();
+			std::mem::swap(a, b);
+		}
+		
+		Ok(())
 	}
 }
