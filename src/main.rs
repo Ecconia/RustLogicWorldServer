@@ -20,7 +20,9 @@ use network::message_pack::reader as mp_reader;
 use network::message_pack::pretty_printer::pretty_print_data;
 use lidgren::lidgren_server::ServerInstance;
 use rust_potato_server::files::extra_data::manager::ExtraDataManager;
+use rust_potato_server::files::world_data::world_file_parser;
 use rust_potato_server::files::world_data::world_structs::World;
+use rust_potato_server::files::world_files::WorldFolderAccess;
 use rust_potato_server::lidgren::data_types::DataType;
 use rust_potato_server::network::packets::c2s::connection_established::ConnectionEstablished;
 use rust_potato_server::network::packets::c2s::player_position::PlayerPosition;
@@ -32,8 +34,9 @@ fn main() {
 	log_info!("Starting ", "Rust Logic World Server", "!");
 	
 	log_info!("Starting file reading!");
+	let folders = unwrap_or_print_return!(WorldFolderAccess::initialize());
 	let mut extra_data = ExtraDataManager::default();
-	let mut world = unwrap_or_print_return!(rust_potato_server::files::world_data::world_file_parser::load_world());
+	let mut world = unwrap_or_print_return!(world_file_parser::load_world(&folders));
 	
 	log_info!("Starting network socket!");
 	let mut rand = rand::thread_rng();

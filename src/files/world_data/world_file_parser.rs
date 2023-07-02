@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-use std::path::Path;
-use crate::files::world_data::world_structs::{Component, ComponentAddress, PegAddress, Wire, World};
 use crate::prelude::*;
+
+use std::collections::HashMap;
+
+use crate::files::world_data::world_structs::{Component, ComponentAddress, PegAddress, Wire, World};
+use crate::files::world_files::WorldFolderAccess;
 use crate::util::custom_iterator::CustomIterator;
 
 const LW_FILE_HEADER: &str = "Logic World save";
@@ -9,48 +11,8 @@ const LW_FILE_FOOTER: &str = "redstone sux lol";
 const LW_FILE_HEADER_BYTES: &[u8] = LW_FILE_HEADER.as_bytes();
 const LW_FILE_FOOTER_BYTES: &[u8] = LW_FILE_FOOTER.as_bytes();
 
-pub fn load_world() -> EhResult<World> {
-	let current_dir = unwrap_ok_or_return!(std::env::current_dir(), |error| {
-		exception!("Error while getting current directory: ", format!("{:?}", error))
-	});
-	log_debug!("Running server in: '", current_dir.to_string_lossy(), "'");
-	if !current_dir.exists() {
-		return exception!("Running from a directory that does (no longer) exist.");
-	}
-	
-	//Create path and validate existence:
-	let data_folder = current_dir.join(Path::new("data"));
-	if !data_folder.exists() {
-		log_warn!("Data directory does not exist, creating it!");
-		unwrap_ok_or_return!(std::fs::create_dir(data_folder), |error| {
-			exception!("Failed to create data directory: ", format!("{:?}", error))
-		});
-		return exception!("As the data directory was just created and this server can't create worlds yet. You have to copy a world into the ", "data", " folder. Make sure it is called '", "World", "'!");
-	}
-	if !data_folder.is_dir() {
-		return exception!("Expected to find a ", "data", " folder inside the current directory. 'data' exists, but it is not a directory.");
-	}
-	let world_folder = data_folder.join(Path::new("World"));
-	if !world_folder.exists() {
-		return exception!("Expected to find '", "World", "' folder inside of the data directory. No world found, copy one here.");
-	}
-	if !world_folder.is_dir() {
-		return exception!("Expected to find a ", "World", " folder inside of the data directory. 'data' exists, but it is not a directory.");
-	}
-	let world_data_file = world_folder.join("data.logicworld");
-	if !world_folder.exists() {
-		return exception!("Expected to find '", "data.logicworld", "' file inside of the world directory. But the file is not there (It contains the world data - you should be concerned).");
-	}
-	if !world_data_file.is_file() {
-		return exception!("Expected to find a ", "data.logicworld", " file inside the current directory. 'data.logicworld' exists, but it is not a file.");
-	}
-	
-	//Read the whole file into RAM:
-	let data_vec = unwrap_ok_or_return!(std::fs::read(world_data_file), |error| {
-		exception!("Failed to read world data file: ", format!("{:?}", error))
-	});
-	log_debug!("Read world with ", data_vec.len(), " bytes");
-	
+pub fn load_world(folders: &WorldFolderAccess) -> EhResult<World> {
+	let data_vec = exception_wrap!(folders.load_world_file(), "While loading world")?;
 	let iterator = &mut CustomIterator::borrow(&data_vec[..]);
 	return read_from_file(iterator);
 }

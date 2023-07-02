@@ -14,6 +14,7 @@ pub mod files {
 			pub mod world_type_data;
 		}
 	}
+	pub mod world_files;
 }
 
 pub mod network {
