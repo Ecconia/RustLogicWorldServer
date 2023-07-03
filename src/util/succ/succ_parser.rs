@@ -95,7 +95,7 @@ impl TreeParser {
 	}
 	
 	fn top_entry(&mut self) -> EhResult<RefMut<LineContext>> {
-		exception_wrap!(exception_from!(self.stack.last_mut().unwrap().try_borrow_mut()), "While getting top of stack, no element present or already locked => the developer writing the succ parsing code messed up.")
+		self.stack.last_mut().unwrap().try_borrow_mut().map_ex(ex!("While getting top of stack, no element present or already locked => the developer writing the succ parsing code messed up."))
 	}
 	
 	fn add_root(&mut self, line_meta: LineMeta) -> EhResult<()> {
@@ -301,13 +301,13 @@ macro_rules! add_child {
 }
 
 pub fn parse_succ_file(bytes: &[u8]) -> EhResult<SuccType> {
-	let text = exception_from!(from_utf8(bytes))?; //TBI: Should this be read as string by default?
+	let text = from_utf8(bytes).map_ex(ex!())?; //TBI: Should this be read as string by default?
 	let lines = text.lines();
 	
 	let mut data = TreeParser::new();
 	
 	for line in lines {
-		let line_meta = exception_wrap!(parse_line(line), "While parsing line content")?;
+		let line_meta = parse_line(line).wrap(ex!("While parsing line content"))?;
 		if line_meta.is_none() {
 			continue;
 		}
@@ -411,7 +411,7 @@ fn convert_structure(input: LineContext) -> EhResult<SuccType> {
 		SuccTypeInner::Map => {
 			let mut child_nodes = HashMap::new();
 			for node in input.children {
-				let mut unwrapped = exception_wrap!(exception_from!(Rc::try_unwrap(node)), "Something went wrong. Unwrapping RC should not fail at this point, as nothing uses it anymore!")?.into_inner();
+				let mut unwrapped = Rc::try_unwrap(node).map_ex(ex!("Something went wrong. Unwrapping RC should not fail at this point, as nothing uses it anymore!"))?.into_inner();
 				let key = unwrapped.meta.key.take().unwrap();
 				child_nodes.insert(key, convert_structure(unwrapped)?);
 			}
@@ -420,7 +420,7 @@ fn convert_structure(input: LineContext) -> EhResult<SuccType> {
 		SuccTypeInner::List => {
 			let mut child_nodes = Vec::new();
 			for node in input.children {
-				let unwrapped = exception_wrap!(exception_from!(Rc::try_unwrap(node)), "Something went wrong. Unwrapping RC should not fail at this point, as nothing uses it anymore!")?.into_inner();
+				let unwrapped = Rc::try_unwrap(node).map_ex(ex!("Something went wrong. Unwrapping RC should not fail at this point, as nothing uses it anymore!"))?.into_inner();
 				child_nodes.push(convert_structure(unwrapped)?);
 			}
 			SuccType::List(child_nodes)

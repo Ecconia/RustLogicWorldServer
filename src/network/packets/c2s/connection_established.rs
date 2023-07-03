@@ -17,7 +17,7 @@ impl ConnectionEstablished {
 	pub fn parse(mut iterator: CustomIterator) -> EhResult<ConnectionEstablished> {
 		let iterator = &mut iterator;
 		expect_array!(iterator, "ConnectionEstablished", "main content", 1);
-		let number = exception_wrap!(mp_reader::read_u32(iterator), "While parsing ConnectionEstablished packet's dummy value")?;
+		let number = mp_reader::read_u32(iterator).wrap(ex!("While parsing ConnectionEstablished packet's dummy value"))?;
 		if number != 0 {
 			return exception!("Expected ConnectionEstablished expected integer of value 0, got: ", number);
 		}

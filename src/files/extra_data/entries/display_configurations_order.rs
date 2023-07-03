@@ -28,10 +28,10 @@ pub struct DisplayConfigurationsOrderData {
 
 fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationsOrderData> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let entry_amount = exception_wrap!(mp_reader::read_array(iterator), "While reading display configuration entry count in extra data")?;
+	let entry_amount = mp_reader::read_array(iterator).wrap(ex!("While reading display configuration entry count in extra data"))?;
 	let mut list = Vec::with_capacity(entry_amount as usize);
 	for _ in 0..entry_amount {
-		let order_entry = exception_wrap!(mp_reader::read_i32(iterator), "While reading display configuration entry in extra data")?;
+		let order_entry = mp_reader::read_i32(iterator).wrap(ex!("While reading display configuration entry in extra data"))?;
 		if order_entry < 0 {
 			exception!("Display configuration order index must not be negative!")?
 		}

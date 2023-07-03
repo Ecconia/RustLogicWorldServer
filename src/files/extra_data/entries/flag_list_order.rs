@@ -16,11 +16,11 @@ pub struct FlagListOrder {
 
 fn parse_data(bytes: &[u8]) -> EhResult<FlagListOrder> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let flag_count = exception_wrap!(mp_reader::read_array(iterator), "While reading flag entry count in extra data")?;
+	let flag_count = mp_reader::read_array(iterator).wrap(ex!("While reading flag entry count in extra data"))?;
 	let mut flags = Vec::with_capacity(flag_count as usize);
 	for _ in 0..flag_count {
 		expect_array!(iterator, "FlagList ExtraData" , "flag entry", 1);
-		let flag_address = exception_wrap!(mp_reader::read_i32(iterator), "While reading flag entry in extra data")?;
+		let flag_address = mp_reader::read_i32(iterator).wrap(ex!("While reading flag entry in extra data"))?;
 		if flag_address < 0 {
 			exception!("Flag address must not be negative!")?
 		}

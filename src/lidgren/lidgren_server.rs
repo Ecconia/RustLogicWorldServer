@@ -76,8 +76,8 @@ impl ServerInstance {
 		server_unique_id: u64,
 		target: String,
 	) -> EhResult<ServerInstance> {
-		let socket = exception_from!(UdpSocket::bind(target), "While binding server socket")?;
-		exception_from!(socket.set_nonblocking(true), "While setting socket to non-blocking mode")?;
+		let socket = UdpSocket::bind(target).map_ex(ex!("While binding server socket"))?;
+		socket.set_nonblocking(true).map_ex(ex!("While setting socket to non-blocking mode"))?;
 		
 		let input_buffer: [u8; 0xFFFF] = [0; 0xFFFF];
 		let now = Instant::now();
@@ -140,7 +140,7 @@ impl ServerInstance {
 		let mut iterator = CustomIterator::borrow(&self.input_buffer[0..amount_read]);
 		
 		while iterator.remaining() >= MESSAGE_HEADER_LENGTH {
-			let header = unwrap_or_print_return!(exception_wrap!(MessageHeader::from_stream(&mut iterator), "While constructing lidgren header"));
+			let header = unwrap_or_print_return!(MessageHeader::from_stream(&mut iterator).wrap(ex!("While constructing lidgren header")));
 			log_debug!("Type: ", format!("{:x?}", header.message_type), " Fragment: ", header.fragment, " Sequence#: ", header.sequence_number, " Bits: ", header.bits, " Bytes: ", header.bytes);
 			
 			if (iterator.remaining() as u16) < header.bytes {
@@ -153,7 +153,7 @@ impl ServerInstance {
 				return;
 			}
 			
-			let message_data_iterator = unwrap_or_print_return!(exception_wrap!(iterator.sub_section(header.bytes as usize), "While creating message-sub-iterator"));
+			let message_data_iterator = unwrap_or_print_return!(iterator.sub_section(header.bytes as usize).wrap(ex!("While creating message-sub-iterator")));
 			
 			if MessageType::is_system(&header.message_type) {
 				match header.message_type {
@@ -234,14 +234,14 @@ impl ServerInstance {
 	}
 	
 	fn handle_packet_connect(mut iterator: CustomIterator, remote_address: SocketAddr, new_data_packets: &mut Vec<DataPacket>, application_name: &String) {
-		let app_id = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut iterator), "While reading app id, in connect message"));
+		let app_id = unwrap_or_print_return!(lg_formatter::read_string(&mut iterator).wrap(ex!("While reading app id, in connect message")));
 		if application_name.ne(&app_id) {
 			log_warn!("Remote ", remote_address.ip(), ":", remote_address.port(), " sent wrong application identifier name '", app_id, "'.");
 			return;
 		}
 		//TODO: Actually somehow use the ID? Only useful if routers actually do funky stuff...
 		let _remote_id = lg_formatter::read_int_64(&mut iterator);
-		let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut iterator), "While reading the remote time"));
+		let remote_time = unwrap_or_print_return!(lg_formatter::read_float(&mut iterator).wrap(ex!("While reading the remote time")));
 		log_debug!("Remote time: ", remote_time);
 		new_data_packets.push(DataPacket {
 			data_type: DataType::Connect,
@@ -255,7 +255,7 @@ impl ServerInstance {
 			log_warn!("Remote ", remote_address.ip(), ":", remote_address.port(), " sent invalid connection established message, expected exactly 4 bytes, got ", iterator.remaining());
 			return;
 		}
-		let remote_time = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_float(&mut iterator), "While reading the remote time"));
+		let remote_time = unwrap_or_print_return!(lg_formatter::read_float(&mut iterator).wrap(ex!("While reading the remote time")));
 		log_debug!("Remote time: ", remote_time);
 		//Register user:
 		user_map.insert(remote_address, ConnectedClient::new(remote_address));
@@ -305,7 +305,7 @@ impl ServerInstance {
 			}
 		}
 		//Now read the actual packet content:
-		let disconnection_reason = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_string(&mut iterator), "While reading disconnect reason"));
+		let disconnection_reason = unwrap_or_print_return!(lg_formatter::read_string(&mut iterator).wrap(ex!("While reading disconnect reason")));
 		log_warn!(">> Client disconnected with reason: '", disconnection_reason, "'");
 		if iterator.has_more() {
 			log_warn!("Warning Disconnect packet had more data to read: ", iterator.remaining(), " bytes");

@@ -77,7 +77,7 @@ fn parse_entry(
 	prefix_first: &str,
 	prefix_other: &str,
 ) -> EhResult<()> {
-	let type_fml = exception_wrap!(iterator.peek(), "While peeking next expected type byte")?;
+	let type_fml = iterator.peek().wrap(ex!("While peeking next expected type byte"))?;
 	match type_fml {
 		0x00..=0x7F => {
 			//Positive fix integer:
@@ -88,17 +88,17 @@ fn parse_entry(
 			//Fix map
 			let amount = reader::read_map_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Map", "FixMap", amount);
-			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over FixMap entries")?;
+			read_map_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over FixMap entries"))?;
 		}
 		0x90..=0x9F => {
 			//Fix array
 			let amount = reader::read_array_fix(iterator).unwrap(); //Should never error, as bounds and byte are confirmed.
 			print_data!(prefix_first, "Array", "FixArray", amount);
-			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over FixArray entries")?;
+			read_array_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over FixArray entries"))?;
 		}
 		0xA0..=0xBF => {
 			//Fix string
-			let text = exception_wrap!(reader::read_string_fix(iterator), "While reading FixString")?;
+			let text = reader::read_string_fix(iterator).wrap(ex!("While reading FixString"))?;
 			print_data!(str prefix_first, "String", "FixString", text);
 		}
 		0xC0 => {
@@ -126,166 +126,166 @@ fn parse_entry(
 		}
 		0xC4 => {
 			//Binary 8
-			let bytes = exception_wrap!(reader::read_binary_8(iterator), "While reading 8BitByteArray")?;
+			let bytes = reader::read_binary_8(iterator).wrap(ex!("While reading 8BitByteArray"))?;
 			print_data!(prefix_first, "Bytes", "8BitByteArray", format!("{:?}", bytes));
 		}
 		0xC5 => {
 			//Binary 16
-			let bytes = exception_wrap!(reader::read_binary_16(iterator), "While reading 16BitByteArray")?;
+			let bytes = reader::read_binary_16(iterator).wrap(ex!("While reading 16BitByteArray"))?;
 			print_data!(prefix_first, "Bytes", "16BitByteArray", format!("{:?}", bytes));
 		}
 		0xC6 => {
 			//Binary 32
-			let bytes = exception_wrap!(reader::read_binary_32(iterator), "While reading 32BitByteArray")?;
+			let bytes = reader::read_binary_32(iterator).wrap(ex!("While reading 32BitByteArray"))?;
 			print_data!(prefix_first, "Bytes", "32BitByteArray", format!("{:?}", bytes));
 		}
 		0xC7 => {
 			//Ext 8
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(iterator.next(), "While reading 8Ext length")?;
-			let sub_type = exception_wrap!(iterator.next(), "While reading 8Ext type")?;
-			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 8Ext bytes")?;
+			let length = iterator.next().wrap(ex!("While reading 8Ext length"))?;
+			let sub_type = iterator.next().wrap(ex!("While reading 8Ext type"))?;
+			let data = iterator.read_bytes(length as usize).wrap(ex!("While reading 8Ext bytes"))?;
 			print_data!(ext prefix_first, "Ext", "8Ext", sub_type, data);
 		}
 		0xC8 => {
 			//Ext 16
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(iterator.read_be_u16(), "While reading 16Ext length")?;
-			let sub_type = exception_wrap!(iterator.next(), "While reading 16Ext type")?;
-			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 16Ext bytes")?;
+			let length = iterator.read_be_u16().wrap(ex!("While reading 16Ext length"))?;
+			let sub_type = iterator.next().wrap(ex!("While reading 16Ext type"))?;
+			let data = iterator.read_bytes(length as usize).wrap(ex!("While reading 16Ext bytes"))?;
 			print_data!(ext prefix_first, "Ext", "16Ext", sub_type, data);
 		}
 		0xC9 => {
 			//Ext 32
 			iterator.skip(); //Already fully used.
-			let length = exception_wrap!(iterator.read_be_u32(), "While reading 32Ext length")?;
-			let sub_type = exception_wrap!(iterator.next(), "While reading 32Ext type")?;
-			let data = exception_wrap!(iterator.read_bytes(length as usize), "While reading 32Ext bytes")?;
+			let length = iterator.read_be_u32().wrap(ex!("While reading 32Ext length"))?;
+			let sub_type = iterator.next().wrap(ex!("While reading 32Ext type"))?;
+			let data = iterator.read_bytes(length as usize).wrap(ex!("While reading 32Ext bytes"))?;
 			print_data!(ext prefix_first, "Ext", "32Ext", sub_type, data);
 		}
 		0xCA => {
 			//Float 32
-			let number = exception_wrap!(reader::read_float_32(iterator), "While reading 32BitFloat")?;
+			let number = reader::read_float_32(iterator).wrap(ex!("While reading 32BitFloat"))?;
 			print_data!(prefix_first, "Float", "32BitFloat", number);
 		}
 		0xCB => {
 			//Float 64
-			let number = exception_wrap!(reader::read_float_64(iterator), "While reading 64BitFloat")?;
+			let number = reader::read_float_64(iterator).wrap(ex!("While reading 64BitFloat"))?;
 			print_data!(prefix_first, "Float", "64BitFloat", number);
 		}
 		0xCC => {
 			//Unsigned Integer 8
-			let number = exception_wrap!(reader::read_int_8(iterator), "While reading 8UInt")?;
+			let number = reader::read_int_8(iterator).wrap(ex!("While reading 8UInt"))?;
 			print_data!(prefix_first, "Int", "8UInt", number);
 		}
 		0xCD => {
 			//Unsigned Integer 16
-			let number = exception_wrap!(reader::read_int_16(iterator), "While reading 16UInt")?;
+			let number = reader::read_int_16(iterator).wrap(ex!("While reading 16UInt"))?;
 			print_data!(prefix_first, "Int", "16UInt", number);
 		}
 		0xCE => {
 			//Unsigned Integer 32
-			let number = exception_wrap!(reader::read_int_32(iterator), "While reading 32UInt")?;
+			let number = reader::read_int_32(iterator).wrap(ex!("While reading 32UInt"))?;
 			print_data!(prefix_first, "Int", "32UInt", number);
 		}
 		0xCF => {
 			//Unsigned Integer 64
-			let number = exception_wrap!(reader::read_int_64(iterator), "While reading 64UInt")?;
+			let number = reader::read_int_64(iterator).wrap(ex!("While reading 64UInt"))?;
 			print_data!(prefix_first, "Int", "64UInt", number);
 		}
 		0xD0 => {
 			//Signed Integer 8
-			let number = exception_wrap!(reader::read_s_int_8(iterator), "While reading 8SInt")?;
+			let number = reader::read_s_int_8(iterator).wrap(ex!("While reading 8SInt"))?;
 			print_data!(prefix_first, "Int", "8SInt", number);
 		}
 		0xD1 => {
 			//Signed Integer 16
-			let number = exception_wrap!(reader::read_s_int_16(iterator), "While reading 16SInt")?;
+			let number = reader::read_s_int_16(iterator).wrap(ex!("While reading 16SInt"))?;
 			print_data!(prefix_first, "Int", "16SInt", number);
 		}
 		0xD2 => {
 			//Signed Integer 32
-			let number = exception_wrap!(reader::read_s_int_32(iterator), "While reading 32SInt")?;
+			let number = reader::read_s_int_32(iterator).wrap(ex!("While reading 32SInt"))?;
 			print_data!(prefix_first, "Int", "32SInt", number);
 		}
 		0xD3 => {
 			//Signed Integer 64
-			let number = exception_wrap!(reader::read_s_int_64(iterator), "While reading 64SInt")?;
+			let number = reader::read_s_int_64(iterator).wrap(ex!("While reading 64SInt"))?;
 			print_data!(prefix_first, "Int", "64SInt", number);
 		}
 		0xD4 => {
 			//Fix Ext 1
 			iterator.skip(); //Already fully used.
-			let sub_type = exception_wrap!(iterator.next(), "While reading FixExt1 type")?;
-			let data = exception_wrap!(iterator.read_bytes(1), "While reading FixExt2 bytes")?;
+			let sub_type = iterator.next().wrap(ex!("While reading FixExt1 type"))?;
+			let data = iterator.read_bytes(1).wrap(ex!("While reading FixExt2 bytes"))?;
 			print_data!(ext prefix_first, "Ext", "FixExt1", sub_type, data);
 		}
 		0xD5 => {
 			//Fix Ext 2
 			iterator.skip(); //Already fully used.
-			let sub_type = exception_wrap!(iterator.next(), "While reading FixExt2 type")?;
-			let data = exception_wrap!(iterator.read_bytes(2), "While reading FixExt2 bytes")?;
+			let sub_type = iterator.next().wrap(ex!("While reading FixExt2 type"))?;
+			let data = iterator.read_bytes(2).wrap(ex!("While reading FixExt2 bytes"))?;
 			print_data!(ext prefix_first, "Ext", "FixExt2", sub_type, data);
 		}
 		0xD6 => {
 			//Fix Ext 4
 			iterator.skip(); //Already fully used.
-			let sub_type = exception_wrap!(iterator.next(), "While reading FixExt4 type")?;
-			let data = exception_wrap!(iterator.read_bytes(4), "While reading FixExt4 bytes")?;
+			let sub_type = iterator.next().wrap(ex!("While reading FixExt4 type"))?;
+			let data = iterator.read_bytes(4).wrap(ex!("While reading FixExt4 bytes"))?;
 			print_data!(ext prefix_first, "Ext", "FixExt4", sub_type, data);
 		}
 		0xD7 => {
 			//Fix Ext 8
 			iterator.skip(); //Already fully used.
-			let sub_type = exception_wrap!(iterator.next(), "While reading FixExt8 type")?;
-			let data = exception_wrap!(iterator.read_bytes(8), "While reading FixExt8 bytes")?;
+			let sub_type = iterator.next().wrap(ex!("While reading FixExt8 type"))?;
+			let data = iterator.read_bytes(8).wrap(ex!("While reading FixExt8 bytes"))?;
 			print_data!(ext prefix_first, "Ext", "FixExt8", sub_type, data);
 		}
 		0xD8 => {
 			//Fix Ext 16
 			iterator.skip(); //Already fully used.
-			let sub_type = exception_wrap!(iterator.next(), "While reading FixExt16 type")?;
-			let data = exception_wrap!(iterator.read_bytes(16), "While reading FixExt16 bytes")?;
+			let sub_type = iterator.next().wrap(ex!("While reading FixExt16 type"))?;
+			let data = iterator.read_bytes(16).wrap(ex!("While reading FixExt16 bytes"))?;
 			print_data!(ext prefix_first, "Ext", "FixExt16", sub_type, data);
 		}
 		0xD9 => {
 			//String 8
-			let text = exception_wrap!(reader::read_string_8(iterator), "While reading 8BitLengthString")?;
+			let text = reader::read_string_8(iterator).wrap(ex!("While reading 8BitLengthString"))?;
 			print_data!(str prefix_first, "String", "8BitLengthString", text);
 		}
 		0xDA => {
 			//String 16
-			let text = exception_wrap!(reader::read_string_16(iterator), "While reading 16BitLengthString")?;
+			let text = reader::read_string_16(iterator).wrap(ex!("While reading 16BitLengthString"))?;
 			print_data!(str prefix_first, "String", "16BitLengthString", text);
 		}
 		0xDB => {
 			//String 32
-			let text = exception_wrap!(reader::read_string_32(iterator), "While reading 32BitLengthString")?;
+			let text = reader::read_string_32(iterator).wrap(ex!("While reading 32BitLengthString"))?;
 			print_data!(str prefix_first, "String", "32BitLengthString", text);
 		}
 		0xDC => {
 			//Array 16
-			let amount = exception_wrap!(reader::read_array_16(iterator), "While reading 16BitLengthArray amount")?;
+			let amount = reader::read_array_16(iterator).wrap(ex!("While reading 16BitLengthArray amount"))?;
 			print_data!(prefix_first, "Array", "16BitLengthArray", amount);
-			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over 16BitLengthArray entries")?;
+			read_array_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over 16BitLengthArray entries"))?;
 		}
 		0xDD => {
 			//Array 32
-			let amount = exception_wrap!(reader::read_array_32(iterator), "While reading 32BitLengthArray amount")?;
+			let amount = reader::read_array_32(iterator).wrap(ex!("While reading 32BitLengthArray amount"))?;
 			print_data!(prefix_first, "Array", "32BitLengthArray", amount);
-			exception_wrap!(read_array_objects(iterator, amount as usize, prefix_other), "While iterating over 32BitLengthArray entries")?;
+			read_array_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over 32BitLengthArray entries"))?;
 		}
 		0xDE => {
 			//Map 16
-			let amount = exception_wrap!(reader::read_map_16(iterator), "While reading 16BitLengthMap amount")?;
+			let amount = reader::read_map_16(iterator).wrap(ex!("While reading 16BitLengthMap amount"))?;
 			print_data!(prefix_first, "Map", "16BitLengthMap", amount);
-			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over 16BitLengthMap entries")?;
+			read_map_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over 16BitLengthMap entries"))?;
 		}
 		0xDF => {
 			//Map 32
-			let amount = exception_wrap!(reader::read_map_32(iterator), "While reading 32BitLengthMap amount")?;
+			let amount = reader::read_map_32(iterator).wrap(ex!("While reading 32BitLengthMap amount"))?;
 			print_data!(prefix_first, "Map", "32BitLengthMap", amount);
-			exception_wrap!(read_map_objects(iterator, amount as usize, prefix_other), "While iterating over 32BitLengthMap entries")?;
+			read_map_objects(iterator, amount as usize, prefix_other).wrap(ex!("While iterating over 32BitLengthMap entries"))?;
 		}
 		0xE0..=0xFF => {
 			//Negative fix integer
@@ -309,16 +309,16 @@ fn read_map_objects(iterator: &mut CustomIterator,
 	let prefix_first_val = &(previous_prefix.to_owned() + " │ └")[..];
 	let prefix_other_val = &(previous_prefix.to_owned() + " │  ")[..];
 	for _ in 0..(amount - 1) {
-		exception_wrap!(parse_entry(iterator, prefix_first_key, prefix_other_key), "While iterating over map entries (key)")?;
-		exception_wrap!(parse_entry(iterator, prefix_first_val, prefix_other_val), "While iterating over map entries (value)")?;
+		parse_entry(iterator, prefix_first_key, prefix_other_key).wrap(ex!("While iterating over map entries (key)"))?;
+		parse_entry(iterator, prefix_first_val, prefix_other_val).wrap(ex!("While iterating over map entries (value)"))?;
 	}
 	//Last entry:
 	let prefix_first_key = &(previous_prefix.to_owned() + " └")[..];
 	let prefix_other_key = &(previous_prefix.to_owned() + "   │")[..];
 	let prefix_first_val = &(previous_prefix.to_owned() + "   └")[..];
 	let prefix_other_val = &(previous_prefix.to_owned() + "    ")[..];
-	exception_wrap!(parse_entry(iterator, prefix_first_key, prefix_other_key), "While iterating over map entries (last key)")?;
-	exception_wrap!(parse_entry(iterator, prefix_first_val, prefix_other_val), "While iterating over map entries (last value)")?;
+	parse_entry(iterator, prefix_first_key, prefix_other_key).wrap(ex!("While iterating over map entries (last key)"))?;
+	parse_entry(iterator, prefix_first_val, prefix_other_val).wrap(ex!("While iterating over map entries (last value)"))?;
 	Ok(())
 }
 
@@ -333,11 +333,11 @@ fn read_array_objects(iterator: &mut CustomIterator,
 	let prefix_first = &(previous_prefix.to_owned() + " ├")[..];
 	let prefix_other = &(previous_prefix.to_owned() + " │")[..];
 	for _ in 0..(amount - 1) {
-		exception_wrap!(parse_entry(iterator, prefix_first, prefix_other), "While iterating over array entries")?;
+		parse_entry(iterator, prefix_first, prefix_other).wrap(ex!("While iterating over array entries"))?;
 	}
 	//Last entry:
 	let prefix_first = &(previous_prefix.to_owned() + " └")[..];
 	let prefix_other = &(previous_prefix.to_owned() + "  ")[..];
-	exception_wrap!(parse_entry(iterator, prefix_first, prefix_other), "While iterating over array entries (last)")?;
+	parse_entry(iterator, prefix_first, prefix_other).wrap(ex!("While iterating over array entries (last)"))?;
 	Ok(())
 }

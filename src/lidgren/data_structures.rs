@@ -27,7 +27,7 @@ impl MessageHeader {
 		let bits = iterator.next_unchecked() as u16 | ((iterator.next_unchecked() as u16) << 8);
 		
 		let message_type = unwrap_some_or_return!(MessageType::from_id(message_type_id),{
-			exception_wrap!(exception!("There is no message type for id: ", message_type_id), "While reading Lidgren header")
+			exception!("There is no message type for id: ", message_type_id).wrap(ex!("While reading Lidgren header"))
 		});
 		
 		//Make sure to not overflow:

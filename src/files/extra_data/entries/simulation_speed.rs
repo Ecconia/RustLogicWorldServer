@@ -15,7 +15,7 @@ pub struct SimulationSpeed {
 
 fn parse_data(bytes: &[u8]) -> EhResult<SimulationSpeed> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let bool_value = exception_wrap!(mp_reader::read_f64(iterator), "While reading extra data simulation speed")?;
+	let bool_value = mp_reader::read_f64(iterator).wrap(ex!("While reading extra data simulation speed"))?;
 	Ok(SimulationSpeed {
 		speed: bool_value,
 	})

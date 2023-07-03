@@ -15,7 +15,7 @@ pub struct SimulationPaused {
 
 fn parse_data(bytes: &[u8]) -> EhResult<SimulationPaused> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let bool_value = exception_wrap!(mp_reader::read_bool(iterator), "asdf")?;
+	let bool_value = mp_reader::read_bool(iterator).wrap(ex!("asdf"))?;
 	Ok(SimulationPaused {
 		paused: bool_value,
 	})

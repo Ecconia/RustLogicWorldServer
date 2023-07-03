@@ -25,23 +25,23 @@ impl ConnectionApproval {
 		let iterator = &mut iterator;
 		
 		expect_array!(iterator, "ConnectionApproval", "main content", 6);
-		let mod_count = exception_wrap!(mp_reader::read_array(iterator), "While reading connect packet mod count")?;
+		let mod_count = mp_reader::read_array(iterator).wrap(ex!("While reading connect packet mod count"))?;
 		log_debug!("Mod count: ", mod_count);
 		let mut mods = Vec::new();
 		for _ in 0..mod_count {
-			let mod_id = exception_wrap!(mp_reader::read_string(iterator), "While reading connect packet mod entry")?;
+			let mod_id = mp_reader::read_string(iterator).wrap(ex!("While reading connect packet mod entry"))?;
 			log_debug!(" - ", mod_id);
 			mods.push(mod_id);
 		}
 		
 		expect_array!(iterator, "ConnectionApproval", "user option", 1);
-		let username = exception_wrap!(mp_reader::read_string(iterator), "While reading connect packet username")?;
+		let username = mp_reader::read_string(iterator).wrap(ex!("While reading connect packet username"))?;
 		log_debug!("Username: ", username);
 		
-		let version = exception_wrap!(mp_reader::read_string(iterator), "While reading connect packet client version")?;
-		let password_hash = exception_wrap!(mp_reader::optional!(iterator, mp_reader::read_bytes(iterator)), "While reading connect packet password hash")?;
-		let hail_payload = exception_wrap!(mp_reader::optional!(iterator, mp_reader::read_string(iterator)), "While reading connect packet hail payload")?;
-		let hail_signature = exception_wrap!(mp_reader::optional!(iterator, mp_reader::read_string(iterator)), "While reading connect packet hail signature")?;
+		let version = mp_reader::read_string(iterator).wrap(ex!("While reading connect packet client version"))?;
+		let password_hash = mp_reader::optional!(iterator, mp_reader::read_bytes(iterator)).wrap(ex!("While reading connect packet password hash"))?;
+		let hail_payload = mp_reader::optional!(iterator, mp_reader::read_string(iterator)).wrap(ex!("While reading connect packet hail payload"))?;
+		let hail_signature = mp_reader::optional!(iterator, mp_reader::read_string(iterator)).wrap(ex!("While reading connect packet hail signature"))?;
 		log_debug!("Version: ", version);
 		log_debug!("PWHash: ", format!("{:x?}", password_hash));
 		log_debug!("HailPayload: ", format!("{:?}", hail_payload));

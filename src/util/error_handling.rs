@@ -74,8 +74,10 @@ macro_rules! _exception {
 			messages.push(format!(concat!(
 				$crate::util::log_formatter::color_error_normal!(),
 				"Error: {}",
+				crate::util::log_formatter::color_meta!(),
+				" @ {} | {}:{}",
 				$crate::util::ansi_constants::ansi_reset!(),
-			), $while));
+			), $while, file!(), line!(), column!()));
 			$crate::util::error_handling::ExceptionDetails {
 				messages
 			}
@@ -88,26 +90,6 @@ macro_rules! _exception {
 	};
 }
 pub use _exception as exception;
-
-#[macro_export]
-macro_rules! _exception_from {
-	( $result:expr ) => {
-		//No explanation of when this exception was thrown, just wrap it...
-		// Not recommended, as it won't add any position details.
-		match $result {
-			Ok(value) => Ok(value),
-			Err(exception) => $crate::util::error_handling::exception!(format!("{:?}", exception))
-		}
-	};
-	( $result:expr, $( $while:expr ),+ ) => {
-		//Exception while... basically syntax sugar for expansion...
-		$crate::util::error_handling::exception_wrap!(
-			$crate::util::error_handling::exception_from!($result),
-			$( $while ),+
-		)
-	};
-}
-pub use _exception_from as exception_from;
 
 pub trait ResultExceptionDetailsExt<T> {
 	fn while_doing(self, while_doing_what: &str) -> EhResult<T>;
@@ -149,12 +131,47 @@ impl<T> ResultExceptionDetailsExt<T> for EhResult<T> {
 	}
 }
 
+// ### Newer system: #############
+
 #[macro_export]
-macro_rules! _exception_wrap {
-	( $result:expr, $( $while:expr ),* ) => {
-		$crate::util::error_handling::ResultExceptionDetailsExt::while_doing_detailed(
-			$result, file!(), line!(), column!(), $crate::util::log_formatter::fmt_error!($( $while ),*)
+macro_rules! _ex {
+	() => {
+		(
+			file!(),
+			line!(),
+			column!(),
+			None,
+		)
+	};
+	( $($reason:expr),* ) => {
+		(
+			file!(),
+			line!(),
+			column!(),
+			Some($crate::util::log_formatter::fmt_error!( $( $reason ),* )),
 		)
 	};
 }
-pub use _exception_wrap as exception_wrap;
+pub use _ex as ex;
+
+pub trait ExceptionWrapping<T, E: std::fmt::Debug> {
+	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T>;
+}
+
+impl<T, E: std::fmt::Debug> ExceptionWrapping<T, E> for Result<T, E> {
+	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T> {
+		self.map_err(|e| { ExceptionDetails {
+			messages: vec![format!("{:?}", e)],
+		}}).wrap(details)
+	}
+}
+
+pub trait ExceptionHandling<T> {
+	fn wrap(self, c: (&str, u32, u32, Option<String>)) -> Self;
+}
+
+impl<T> ExceptionHandling<T> for EhResult<T> {
+	fn wrap(self, context: (&str, u32, u32, Option<String>)) -> Self {
+		self.while_doing_detailed(context.0, context.1, context.2, context.3.unwrap_or_else(|| { "/".to_owned() }))
+	}
+}

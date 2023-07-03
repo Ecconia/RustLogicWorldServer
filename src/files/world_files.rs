@@ -74,7 +74,7 @@ impl WorldFolderAccess {
 	}
 	
 	pub fn load_world_file(&self) -> EhResult<Vec<u8>> {
-		let data_vec = exception_wrap!(Self::load_file(&self.world_file), "While loading world from disk")?;
+		let data_vec = Self::load_file(&self.world_file).wrap(ex!("While loading world from disk"))?;
 		log_debug!("Read world with ", data_vec.len(), " bytes");
 		Ok(data_vec)
 	}
@@ -93,8 +93,8 @@ impl WorldFolderAccess {
 		let b = &mut Vec::new();
 		while !a.is_empty() {
 			for folder_path in a.iter_mut() {
-				for dir_entry in exception_from!(fs::read_dir(folder_path), "While getting folders from directory")? {
-					let dir_entry = exception_from!(dir_entry)?.path();
+				for dir_entry in fs::read_dir(folder_path).map_ex(ex!("While getting folders from directory"))? {
+					let dir_entry = dir_entry.map_ex(ex!())?.path();
 					if dir_entry.is_dir() {
 						b.push(dir_entry);
 						continue;
@@ -102,8 +102,8 @@ impl WorldFolderAccess {
 					if dir_entry.is_file() && dir_entry.to_string_lossy().ends_with(".succ") {
 						//Process
 						log_info!("Trying to parse: ", &dir_entry.to_string_lossy());
-						let bytes = exception_wrap!(Self::load_file(&dir_entry), "While loading SUCC file bytes from disk")?;
-						exception_wrap!(succ_parser::debug_succ_file(&bytes), "While trying to parse random SUCC file")?;
+						let bytes = Self::load_file(&dir_entry).wrap(ex!("While loading SUCC file bytes from disk"))?;
+						succ_parser::debug_succ_file(&bytes).wrap(ex!("While trying to parse random SUCC file"))?;
 					}
 				}
 			}

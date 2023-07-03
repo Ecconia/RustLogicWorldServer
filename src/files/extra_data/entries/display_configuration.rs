@@ -33,13 +33,13 @@ pub struct DisplayConfigurationData {
 
 fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationData> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let color_count = exception_wrap!(mp_reader::read_array(iterator), "While reading color count in display conf extra data")?;
+	let color_count = mp_reader::read_array(iterator).wrap(ex!("While reading color count in display conf extra data"))?;
 	let mut colors = Vec::with_capacity(color_count as usize);
 	for _ in 0..color_count {
 		expect_array!(iterator, "DisplayConfiguration ExtraData" , "color entry", 3);
-		let c_red = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
-		let c_green = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
-		let c_blue = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
+		let c_red = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
+		let c_green = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
+		let c_blue = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
 		colors.push(Color24 {
 			r: c_red,
 			g: c_green,
