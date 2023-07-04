@@ -123,9 +123,9 @@ impl SuccType {
 		}
 		//Data validated, time to parse it:
 		Ok(Color24 {
-			r: u8::from_str_radix(&value[0..1], 16).unwrap(),
-			g: u8::from_str_radix(&value[2..3], 16).unwrap(),
-			b: u8::from_str_radix(&value[4..5], 16).unwrap(),
+			r: u8::from_str_radix(&value[0..2], 16).unwrap(),
+			g: u8::from_str_radix(&value[2..4], 16).unwrap(),
+			b: u8::from_str_radix(&value[4..6], 16).unwrap(),
 		})
 	}
 	
