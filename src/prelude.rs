@@ -13,7 +13,8 @@ pub use crate::util::error_handling::{
 	UnwrapHelperResult,
 	//Exception framework feature:
 	EhResult,
-	ExceptionWrapping,
+	ExceptionWrappingResult,
+	ExceptionWrappingOption,
 	ExceptionHandling,
 	ex,
 	exception,

@@ -102,9 +102,8 @@ fn read_from_file(iterator: &mut CustomIterator) -> EhResult<World> {
 		//TODO: Check that all parent addresses actually do exists.
 		let parent_address = read_component_address(iterator).wrap(ex!("While reading component parent address"))?;
 		let component_type_index = iterator.read_le_u16().wrap(ex!("While reading component type index"))?;
-		let _component_type = unwrap_some_or_return!(component_dictionary.get(&component_type_index), {
-			exception!("Component type ID with not entry in component-ID map found: ", component_type_index)
-		});
+		let _component_type = component_dictionary.get(&component_type_index)
+			.map_ex(ex!("Component type ID with not entry in component-ID map found: ", component_type_index))?;
 		let relative_position = read_position(iterator, patch_positions).wrap(ex!("While reading component position"))?;
 		let relative_alignment = read_alignment(iterator).wrap(ex!("While reading component alignment"))?;
 		

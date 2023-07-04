@@ -95,7 +95,7 @@ macro_rules! _exception {
 			messages.push(format!(concat!(
 				$crate::util::log_formatter::color_error_normal!(),
 				"Error: {}",
-				crate::util::log_formatter::color_meta!(),
+				$crate::util::log_formatter::color_meta!(),
 				" @ {} | {}:{}",
 				$crate::util::ansi_constants::ansi_reset!(),
 			), $while, file!(), line!(), column!()));
@@ -175,15 +175,35 @@ macro_rules! _ex {
 }
 pub use _ex as ex;
 
-pub trait ExceptionWrapping<T, E: std::fmt::Debug> {
+pub trait ExceptionWrappingResult<T, E: std::fmt::Debug> {
 	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T>;
 }
 
-impl<T, E: std::fmt::Debug> ExceptionWrapping<T, E> for Result<T, E> {
+impl<T, E: std::fmt::Debug> ExceptionWrappingResult<T, E> for Result<T, E> {
 	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T> {
 		self.map_err(|e| { ExceptionDetails {
 			messages: vec![format!("{:?}", e)],
 		}}).wrap(details)
+	}
+}
+
+pub trait ExceptionWrappingOption<T> {
+	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T>;
+}
+
+impl<T> ExceptionWrappingOption<T> for Option<T> {
+	fn map_ex(self, details: (&str, u32, u32, Option<String>)) -> EhResult<T> {
+		self.ok_or_else(|| {
+			if details.3.is_none() {
+				ExceptionDetails {
+					messages: vec!["Thing be empty".to_owned()],
+				}
+			} else {
+				ExceptionDetails {
+					messages: vec![],
+				}
+			}
+		})
 	}
 }
 
