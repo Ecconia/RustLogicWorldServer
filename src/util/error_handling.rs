@@ -1,38 +1,38 @@
 // ### Unwrap & Return feature:
 
-pub trait UnwrapHelperOption<A, B> {
-	fn unwrap_helper(self) -> Result<A, ()>;
-	fn unwrap_helper_arg(self, argument: B) -> Result<A, B>;
+pub trait UnwrapHelperOptionA<A> {
+	fn unwrap_helper(self) -> Option<A>;
 }
 
-impl<A, B> UnwrapHelperOption<A, B> for Option<A> {
-	fn unwrap_helper(self) -> Result<A, ()> {
-		match self {
-			Some(x) => Ok(x),
-			None => Err(()),
-		}
+pub trait UnwrapHelperOptionB<A, C> {
+	fn unwrap_helper_closure<F: Fn() -> C>(self, closure: F) -> Result<A, C>;
+}
+
+impl<A> UnwrapHelperOptionA<A> for Option<A> {
+	fn unwrap_helper(self) -> Option<A> {
+		self
 	}
-	fn unwrap_helper_arg(self, argument: B) -> Result<A, B> {
+}
+
+impl<A, C> UnwrapHelperOptionB<A, C> for Option<A> {
+	fn unwrap_helper_closure<F: Fn() -> C>(self, closure: F) -> Result<A, C> {
 		match self {
 			Some(x) => Ok(x),
-			None => Err(argument),
+			None => Err(closure()),
 		}
 	}
 }
 
 pub trait UnwrapHelperResult<A, B, C> {
-	fn unwrap_helper(self) -> Result<A, ()>;
-	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C>;
+	fn unwrap_helper(self) -> Option<A>;
+	fn unwrap_helper_closure<F: Fn(B) -> C>(self, closure: F) -> Result<A, C>;
 }
 
 impl<A, B, C> UnwrapHelperResult<A, B, C> for Result<A, B> {
-	fn unwrap_helper(self) -> Result<A, ()> {
-		match self {
-			Ok(x) => Ok(x),
-			Err(_) => Err(()),
-		}
+	fn unwrap_helper(self) -> Option<A> {
+		self.ok()
 	}
-	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C> {
+	fn unwrap_helper_closure<F: Fn(B) -> C>(self, closure: F) -> Result<A, C> {
 		match self {
 			Ok(x) => Ok(x),
 			Err(err) => Err(closure(err)),
@@ -44,18 +44,29 @@ impl<A, B, C> UnwrapHelperResult<A, B, C> for Result<A, B> {
 macro_rules! _unwrap_or_return {
 	($val:expr) => {
 		match $val.unwrap_helper() {
-			Ok(x) => x,
-			Err(val) => return val,
+			Some(x) => x,
+			None => return val,
 		}
 	};
 	($val:expr, $other:expr) => {
-		match $val.unwrap_helper_arg($other) {
+		match $val.unwrap_helper() {
+			Some(x) => x,
+			None => return $other,
+		}
+	};
+}
+pub use _unwrap_or_return as unwrap_or_return;
+
+#[macro_export]
+macro_rules! _unwrap_or_else_return {
+	($val:expr, $other:expr) => {
+		match $val.unwrap_helper_closure($other) {
 			Ok(x) => x,
 			Err(val) => return val,
 		}
 	};
 }
-pub use _unwrap_or_return as unwrap_or_return;
+pub use _unwrap_or_else_return as unwrap_or_else_return;
 
 // ### Exception framework:
 

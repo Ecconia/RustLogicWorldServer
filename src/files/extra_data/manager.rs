@@ -78,7 +78,7 @@ impl ExtraDataManager {
 	
 	pub fn handle_request(&mut self, request_packet: ExtraDataRequest, server: &mut ServerInstance, address: SocketAddr) {
 		pretty_print_data(&mut CustomIterator::borrow(&request_packet.default));
-		let extra_data = unwrap_or_return!(self.resolve_key(&request_packet.key[..]), {
+		let extra_data = unwrap_or_else_return!(self.resolve_key(&request_packet.key[..]), || {
 			log_warn!("Client tried to query unknown ExtraData: '", request_packet.key, "'");
 			log_debug!(" Type is btw: ", request_packet.data_type);
 		});
@@ -95,7 +95,7 @@ impl ExtraDataManager {
 	
 	pub fn handle_change(&mut self, change_packet: ExtraDataChange, server: &mut ServerInstance, address: SocketAddr) {
 		pretty_print_data(&mut CustomIterator::borrow(&change_packet.data_bytes));
-		let extra_data = unwrap_or_return!(self.resolve_key(&change_packet.key[..]), {
+		let extra_data = unwrap_or_else_return!(self.resolve_key(&change_packet.key[..]), || {
 			log_warn!("Client tried to update unknown ExtraData: '", change_packet.key, "'");
 			log_debug!(" Type is btw: ", change_packet.data_type);
 		});

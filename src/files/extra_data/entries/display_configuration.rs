@@ -56,7 +56,7 @@ fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationData> {
 
 impl GenericExtraData for DisplayConfiguration {
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool {
-		let suggested_default = unwrap_or_return!(parse_data(bytes), |error| {
+		let suggested_default = unwrap_or_else_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid default extra data:");
 			error.print(); //TODO: Format as warning.
 			false
@@ -79,7 +79,7 @@ impl GenericExtraData for DisplayConfiguration {
 	}
 	
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool {
-		let new_data = unwrap_or_return!(parse_data(bytes), |error| {
+		let new_data = unwrap_or_else_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid new extra data:");
 			error.print(); //TODO: Format as warning.
 			false

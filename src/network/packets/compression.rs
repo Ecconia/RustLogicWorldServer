@@ -11,9 +11,7 @@ pub fn try_decompress(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8>>
 }
 
 fn try_decompress_inner(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8>>> {
-	let array_size = unwrap_or_return!(mp_reader::try_array(iterator).wrap(ex!("While probing for compression array"))?, {
-		Ok(None)
-	});
+	let array_size = unwrap_or_return!(mp_reader::try_array(iterator).wrap(ex!("While probing for compression array"))?, Ok(None));
 	//There have to be at least two elements, one header (ext) and one chunk:
 	if array_size < 2 {
 		return Ok(None);

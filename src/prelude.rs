@@ -9,7 +9,9 @@ pub use crate::util::log_formatter::{
 pub use crate::util::error_handling::{
 	//Unwrap or return feature:
 	unwrap_or_return,
-	UnwrapHelperOption,
+	unwrap_or_else_return,
+	UnwrapHelperOptionA,
+	UnwrapHelperOptionB,
 	UnwrapHelperResult,
 	//Exception framework feature:
 	EhResult,
