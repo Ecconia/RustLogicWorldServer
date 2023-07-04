@@ -79,38 +79,88 @@ impl WorldFolderAccess {
 		Ok(data_vec)
 	}
 	
-	fn load_file(path: &PathBuf) -> EhResult<Vec<u8>> {
+	pub fn load_file(path: &PathBuf) -> EhResult<Vec<u8>> {
 		let data_vec = unwrap_or_return!(std::fs::read(path), |error| {
 			exception!("Failed to read ", path.to_string_lossy(), ": ", format!("{:?}", error))
 		});
 		Ok(data_vec)
 	}
-	
-	pub fn parse_all_succ_files(&self) -> EhResult<()>{
-		let root_folder = &self.world_folder;
+}
+
+impl WorldFolderAccess {
+	pub fn iterate_files_of_type<T, F: Fn(&mut T, String, PathBuf) -> EhResult<()>>(
+		entry_folder: &PathBuf,
+		file_type: &str,
+		instance: &mut T,
+		closure: F
+	) -> EhResult<()> {
+		let file_prefix = entry_folder.to_string_lossy().len() + 1;
+		let mut stack = vec![fs::read_dir(entry_folder).unwrap()];
 		
-		let a = &mut vec![root_folder.to_owned()];
-		let b = &mut Vec::new();
-		while !a.is_empty() {
-			for folder_path in a.iter_mut() {
-				for dir_entry in fs::read_dir(folder_path).map_ex(ex!("While getting folders from directory"))? {
-					let dir_entry = dir_entry.map_ex(ex!())?.path();
-					if dir_entry.is_dir() {
-						b.push(dir_entry);
-						continue;
-					}
-					if dir_entry.is_file() && dir_entry.to_string_lossy().ends_with(".succ") {
-						//Process
-						log_info!("Trying to parse: ", &dir_entry.to_string_lossy());
-						let bytes = Self::load_file(&dir_entry).wrap(ex!("While loading SUCC file bytes from disk"))?;
-						succ_parser::debug_succ_file(&bytes).wrap(ex!("While trying to parse random SUCC file"))?;
-					}
+		let possible_next_element = stack.last_mut().unwrap().next();
+		if possible_next_element.is_none() {
+			return Ok(()); //Nothing to do.
+		}
+		let mut element = possible_next_element.unwrap();
+		loop {
+			let entry = element.as_ref().map_ex(ex!("While trying to read file information from folder"))?.path();
+			if entry.is_dir() {
+				stack.push(fs::read_dir(entry).unwrap());
+			} else {
+				let name = entry.to_string_lossy();
+				if name.ends_with(file_type) {
+					let key = name.chars().into_iter().skip(file_prefix).take(name.len() - file_type.len() - file_prefix).collect::<String>();
+					closure(instance, key, entry)?;
 				}
 			}
-			a.clear();
-			std::mem::swap(a, b);
+			//Take the next iterator/element:
+			loop {
+				let next_relevant_iterator = stack.last_mut();
+				if let Some(iterator) = next_relevant_iterator {
+					//Got an iterator/folder:
+					let possible_next_element = iterator.next();
+					if let Some(el) = possible_next_element {
+						//Got valid element:
+						element = el;
+						break; //Continue with outer loop.
+					}
+					//No more element in this iterator/folder, skip and get next:
+					stack.pop();
+				} else {
+					//No more iterator/folder, stop here.
+					return Ok(());
+				}
+			}
 		}
-		
+	}
+	
+	pub fn parse_all_succ_files(&self) -> EhResult<()>{
+		Self::iterate_files_of_type(
+			&self.world_folder,
+			".succ",
+			&mut 0u8,
+			|_, key, path| {
+				//Process
+				log_info!("Trying to parse: ", key);
+				let bytes = Self::load_file(&path).wrap(ex!("While loading SUCC file bytes from disk"))?;
+				succ_parser::debug_succ_file(&bytes).wrap(ex!("While trying to parse random SUCC file"))?;
+				Ok(())
+			},
+		)?;
+		Ok(())
+	}
+	
+	pub fn iterate_extra_data<T, F: Fn(&mut T, String, PathBuf) -> EhResult<()>>(
+		&self,
+		instance: &mut T,
+		closure: F
+	) -> EhResult<()> {
+		Self::iterate_files_of_type(
+			&self.extra_data_folder,
+			".succ",
+			instance,
+			closure,
+		)?;
 		Ok(())
 	}
 }

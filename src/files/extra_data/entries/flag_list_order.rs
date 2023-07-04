@@ -4,9 +4,11 @@ use crate::files::extra_data::manager::GenericExtraData;
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_tools::*;
 use crate::util::custom_iterator::CustomIterator;
+use crate::util::succ::succ_types::SuccType;
 
 pub const KEY: &str = "MHG.FlagListOrder";
 pub const TYPE: &str = "System.Collections.Generic.List`1[[LogicAPI.Data.ComponentAddress, LogicAPI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]";
+pub const FILE_TYPE: &str = "System.Collections.Generic.List<LogicAPI.Data.ComponentAddress>";
 
 #[derive(Default)]
 pub struct FlagListOrder {
@@ -58,6 +60,17 @@ impl GenericExtraData for FlagListOrder {
 		true
 	}
 	
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()> {
+		let root = data.expect_list().wrap(ex!())?;
+		let mut list = Vec::new();
+		for entry in root {
+			list.push(entry.expect_component_address().wrap(ex!("While parsing flag entry"))?);
+		}
+		self.flags = list;
+		log_debug!("Loaded ExtraData ", "FlagListOrder", " from disk.");
+		Ok(())
+	}
+	
 	fn key(&self) -> String {
 		KEY.to_string()
 	}
@@ -67,7 +80,7 @@ impl GenericExtraData for FlagListOrder {
 	}
 	
 	fn data_type_file(&self) -> &str {
-		TYPE
+		FILE_TYPE
 	}
 	
 	//TODO: Cache the serialized data until it is changed.

@@ -7,12 +7,7 @@ use std::cell::{RefCell, RefMut};
 use std::cmp::Ordering;
 use std::rc::Rc;
 
-pub enum SuccType {
-	Any(), //Could be literally any of the below types, but always a length of zero
-	Value(String), //Contains a single text value
-	Map(HashMap<String, SuccType>), //Contains a dictionary
-	List(Vec<SuccType>), //Contains a list
-}
+use super::succ_types::SuccType;
 
 pub fn debug_succ_file(bytes: &[u8]) -> EhResult<()> {
 	let root_dict = parse_succ_file(bytes)?;

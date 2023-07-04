@@ -68,6 +68,7 @@ pub mod lidgren {
 
 pub mod util {
 	pub mod succ {
+		pub mod succ_types;
 		pub mod succ_parser;
 	}
 	

@@ -2,14 +2,19 @@ use crate::prelude::*;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+
+use crate::files::extra_data::entries::{flag_list_order, simulation_paused, simulation_speed, world_type_data};
+use crate::files::extra_data::entries::display_configuration::DisplayConfiguration;
+use crate::files::extra_data::entries::display_configurations_order::DisplayConfigurationsOrder;
 use crate::lidgren::lidgren_server::ServerInstance;
 use crate::network::message_pack::pretty_printer::pretty_print_data;
 use crate::network::packets::c2s::extra_data_change::ExtraDataChange;
 use crate::network::packets::c2s::extra_data_request::ExtraDataRequest;
 use crate::network::packets::s2c::extra_data_update::ExtraDataUpdate;
 use crate::util::custom_iterator::CustomIterator;
-
-use crate::files::extra_data::entries::{flag_list_order, simulation_speed, simulation_paused, display_configuration, display_configurations_order, world_type_data};
+use crate::files::world_files::WorldFolderAccess;
+use crate::util::succ::succ_parser;
+use crate::util::succ::succ_types::SuccType;
 
 #[derive(Default)]
 pub struct ExtraDataManager {
@@ -17,6 +22,60 @@ pub struct ExtraDataManager {
 }
 
 impl ExtraDataManager {
+	pub fn initialize(folder: &WorldFolderAccess) -> EhResult<Self> {
+		let mut instance = ExtraDataManager::default();
+		
+		//Attempt to parse every SUCC file:
+		//Doing lazy injection of instance here...
+		folder.iterate_extra_data(&mut instance, |instance, key, path| {
+			let extra_data = instance.resolve_key(&key);
+			if extra_data.is_none() {
+				return Ok(()); //Ignore this file.
+			}
+			let extra_data = extra_data.unwrap();
+			
+			// log_debug!("For key ", key, " path: ", path.to_string_lossy());
+			//Parse SUCC file content:
+			let bytes = WorldFolderAccess::load_file(&path)?;
+			let succ = succ_parser::parse_succ_file(&bytes)?;
+			// succ_parser::debug_print(&succ);
+			if !succ.is_map() {
+				exception!("Expected succ parser to return a Map type, but got something else...")?;
+			}
+			let root = succ.get_map().unwrap();
+			//Is correct root type, if not developers messed up.
+			
+			//Handle data type:
+			let data_type = root.get("DataType");
+			if data_type.is_none() {
+				log_warn!("ExtraData file with key ", key, " has no ", "DataType", " entry.");
+				return Ok(());
+			}
+			let data_type = data_type.unwrap();
+			if !data_type.is_value() {
+				log_warn!("ExtraData file with key ", key, " has wrong ", "DataType SUCC", " entry ", data_type.name(), " it should be a String");
+				return Ok(());
+			}
+			if data_type.get_value().unwrap() != extra_data.data_type_file() {
+				log_warn!("ExtraData file with key ", key, " has wrong ", "DataType", " entry '", data_type.get_value().unwrap(), "' it should be '", extra_data.data_type_file(), "'");
+				return Ok(());
+			}
+			//Has correct data type.
+			
+			//Get data part:
+			let data = root.get("Data");
+			if data.is_none() {
+				log_warn!("ExtraData file with key ", key, " has no ", "Data", " entry.");
+				return Ok(());
+			}
+			let data = data.unwrap();
+			extra_data.load_from_file(data).wrap(ex!("While parsing SUCC ExtraData file with key ", key))?;
+			Ok(())
+		})?;
+		
+		Ok(instance)
+	}
+	
 	pub fn handle_request(&mut self, request_packet: ExtraDataRequest, server: &mut ServerInstance, address: SocketAddr) {
 		pretty_print_data(&mut CustomIterator::borrow(&request_packet.default));
 		let extra_data = unwrap_or_return!(self.resolve_key(&request_packet.key[..]), {
@@ -108,8 +167,8 @@ impl ExtraDataManager {
 					let pegs = u32::from_str_radix(pegs_string, 10).expect("Should not happen, input should always only be digits.");
 					p_key = &p_key[position..];
 					if p_key.eq("_pegs/_Order") {
-						log_info!("Got the ORDER exta data for ", pegs, " pegs");
-						return get_for_key!(key, display_configurations_order::DisplayConfigurationsOrder::new(pegs));
+						// log_info!("Got the ORDER exta data for ", pegs, " pegs");
+						return get_for_key!(key, DisplayConfigurationsOrder::new(pegs));
 					}
 					if !p_key.starts_with("_pegs/Configuration") {
 						return None; //Unknown format.
@@ -123,8 +182,8 @@ impl ExtraDataManager {
 						return None; //Not expecting any more letters here.
 					}
 					let configuration_index = u32::from_str_radix(p_key, 10).expect("Should not happen, input should always only be digits.");
-					log_info!("Got the Configuration #", configuration_index, " exta data for ", pegs, " pegs");
-					return get_for_key!(key, display_configuration::DisplayConfiguration::new(pegs, configuration_index));
+					// log_info!("Got the Configuration #", configuration_index, " exta data for ", pegs, " pegs");
+					return get_for_key!(key, DisplayConfiguration::new(pegs, configuration_index));
 				}
 				None
 			}
@@ -136,6 +195,7 @@ pub trait GenericExtraData {
 	//Return true if successfully validated extra data type and default, else false:
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool;
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool;
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()>;
 	
 	fn key(&self) -> String; //TBI: Has to be owned, one probably could do some lifetime hackery, but not now
 	fn data_type_network(&self) -> &str;

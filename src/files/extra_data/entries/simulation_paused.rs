@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::files::extra_data::manager::GenericExtraData;
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
+use crate::util::succ::succ_types::SuccType;
 
 pub const KEY: &str = "MHG.SimulationPaused";
 pub const TYPE: &str = "System.Boolean";
@@ -45,6 +46,12 @@ impl GenericExtraData for SimulationPaused {
 		self.paused = new_data.paused;
 		log_info!("Client set simulation to ", self.paused);
 		true
+	}
+	
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()> {
+		self.paused = data.expect_bool().wrap(ex!("While parsing bool"))?;
+		log_debug!("Loaded ExtraData ", "SimulationPaused", " from disk.");
+		Ok(())
 	}
 	
 	fn key(&self) -> String {

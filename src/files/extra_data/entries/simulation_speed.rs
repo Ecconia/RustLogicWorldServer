@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::files::extra_data::manager::GenericExtraData;
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
+use crate::util::succ::succ_types::SuccType;
 
 pub const KEY: &str = "MHG.SimulationSpeed";
 pub const TYPE: &str = "System.Double";
@@ -48,6 +49,12 @@ impl GenericExtraData for SimulationSpeed {
 		self.speed = new_data.speed;
 		log_info!("Client set TPS to ", self.speed);
 		true
+	}
+	
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()> {
+		self.speed = data.expect_double().wrap(ex!("While parsing double"))?;
+		log_debug!("Loaded ExtraData ", "SimulationSpeed", " from disk.");
+		Ok(())
 	}
 	
 	fn key(&self) -> String {

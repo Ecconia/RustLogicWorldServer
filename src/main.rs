@@ -35,7 +35,7 @@ fn main() {
 	
 	log_info!("Starting file reading!");
 	let folders = unwrap_or_print_return!(WorldFolderAccess::initialize());
-	let mut extra_data = ExtraDataManager::default();
+	let mut extra_data = unwrap_or_print_return!(ExtraDataManager::initialize(&folders));
 	let mut world = unwrap_or_print_return!(world_file_parser::load_world(&folders));
 	
 	log_info!("Starting network socket!");

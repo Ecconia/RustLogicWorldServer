@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::files::extra_data::manager::GenericExtraData;
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
+use crate::util::succ::succ_types::SuccType;
 
 pub const TYPE: &str = "System.Int32[]";
 
@@ -75,6 +76,19 @@ impl GenericExtraData for DisplayConfigurationsOrder {
 		self.data = Some(new_data);
 		log_info!("Client change display configuration order for ", self.peg_count, " list to ", format!("{:?}", self.data.as_ref().unwrap().list));
 		true
+	}
+	
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()> {
+		let root = data.expect_list().wrap(ex!())?;
+		let mut list = Vec::new();
+		for entry in root {
+			list.push(entry.expect_unsigned().wrap(ex!("While parsing configuration index entry"))?);
+		}
+		self.data = Some(DisplayConfigurationsOrderData {
+			list
+		});
+		log_debug!("Loaded ExtraData ", format!("DisplayConfigurationsOrder#{}", self.peg_count), " from disk.");
+		Ok(())
 	}
 	
 	fn key(&self) -> String {

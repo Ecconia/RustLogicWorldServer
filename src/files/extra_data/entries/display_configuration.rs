@@ -5,6 +5,7 @@ use crate::files::world_data::world_structs::Color24;
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_tools::*;
 use crate::util::custom_iterator::CustomIterator;
+use crate::util::succ::succ_types::SuccType;
 
 pub const TYPE: &str = "JimmysUnityUtilities.Color24[]";
 
@@ -91,6 +92,19 @@ impl GenericExtraData for DisplayConfiguration {
 		self.data = Some(new_data);
 		log_info!("Client change display configuration list #", self.configuration_index, " @", self.peg_count, " pegs.");
 		true
+	}
+	
+	fn load_from_file(&mut self, data: &SuccType) -> EhResult<()> {
+		let root = data.expect_list().wrap(ex!())?;
+		let mut colors = Vec::new();
+		for entry in root {
+			colors.push(entry.expect_color().wrap(ex!("While parsing color entry"))?);
+		}
+		self.data = Some(DisplayConfigurationData {
+			colors
+		});
+		log_debug!("Loaded ExtraData ", format!("DisplayConfiguration#{} {}pegs", self.configuration_index, self.peg_count), " from disk.");
+		Ok(())
 	}
 	
 	fn key(&self) -> String {
