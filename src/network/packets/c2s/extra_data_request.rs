@@ -21,12 +21,12 @@ impl ExtraDataRequest {
 		let iterator = &mut iterator;
 		expect_array!(iterator, "extra data request", "main content", 3);
 		
-		let extra_data_key = exception_wrap!(mp_reader::read_string(iterator), "While reading ExtraDataRequestPacket extra data key")?;
+		let extra_data_key = mp_reader::read_string(iterator).wrap(ex!("While reading ExtraDataRequestPacket extra data key"))?;
 		log_debug!("Client is requesting ", extra_data_key, " extra data");
 		
-		let extra_data_type = exception_wrap!(mp_reader::read_string(iterator), "While reading ExtraDataRequestPacket extra data type")?;
+		let extra_data_type = mp_reader::read_string(iterator).wrap(ex!("While reading ExtraDataRequestPacket extra data type"))?;
 		
-		let extra_data_default = exception_wrap!(mp_reader::read_bytes(iterator), "While reading ExtraDataRequestPacket default extra data bytes")?;
+		let extra_data_default = mp_reader::read_bytes(iterator).wrap(ex!("While reading ExtraDataRequestPacket default extra data bytes"))?;
 		
 		Ok(ExtraDataRequest {
 			key: extra_data_key,

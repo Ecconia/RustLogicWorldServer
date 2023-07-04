@@ -14,7 +14,7 @@ pub struct WorldFolderAccess {
 impl WorldFolderAccess {
 	pub fn initialize() -> EhResult<Self> {
 		//>>> Get current directory:
-		let current_dir = unwrap_ok_or_return!(std::env::current_dir(), |error| {
+		let current_dir = unwrap_or_return!(std::env::current_dir(), |error| {
 			exception!("Error while getting current directory: ", format!("{:?}", error))
 		});
 		log_debug!("Running server in directory: '", current_dir.to_string_lossy(), "'");
@@ -27,7 +27,7 @@ impl WorldFolderAccess {
 		let data_folder = current_dir.join(Path::new("data"));
 		if !data_folder.exists() {
 			log_warn!("Data directory does not exist, creating it!");
-			unwrap_ok_or_return!(std::fs::create_dir(data_folder), |error| {
+			unwrap_or_return!(std::fs::create_dir(data_folder), |error| {
 				exception!("Failed to create data directory: ", format!("{:?}", error))
 			});
 			return exception!("As the data directory was just created and this server can't create worlds yet. You have to copy a world into the ", "data", " folder. Make sure it is called '", "World", "'!");
@@ -58,7 +58,7 @@ impl WorldFolderAccess {
 		let extra_data_folder = world_folder.join(Path::new("ExtraData"));
 		if !extra_data_folder.exists() {
 			log_warn!("Expected to find '", "ExtraData", "' folder inside of the world directory. Not found, will create an empty directory.");
-			unwrap_ok_or_return!(std::fs::create_dir(&extra_data_folder), |error| {
+			unwrap_or_return!(std::fs::create_dir(&extra_data_folder), |error| {
 				exception!("Failed to create ExtraData directory: ", format!("{:?}", error))
 			});
 		}
@@ -74,13 +74,13 @@ impl WorldFolderAccess {
 	}
 	
 	pub fn load_world_file(&self) -> EhResult<Vec<u8>> {
-		let data_vec = exception_wrap!(Self::load_file(&self.world_file), "While loading world from disk")?;
+		let data_vec = Self::load_file(&self.world_file).wrap(ex!("While loading world from disk"))?;
 		log_debug!("Read world with ", data_vec.len(), " bytes");
 		Ok(data_vec)
 	}
 	
 	fn load_file(path: &PathBuf) -> EhResult<Vec<u8>> {
-		let data_vec = unwrap_ok_or_return!(std::fs::read(path), |error| {
+		let data_vec = unwrap_or_return!(std::fs::read(path), |error| {
 			exception!("Failed to read ", path.to_string_lossy(), ": ", format!("{:?}", error))
 		});
 		Ok(data_vec)
@@ -93,8 +93,8 @@ impl WorldFolderAccess {
 		let b = &mut Vec::new();
 		while !a.is_empty() {
 			for folder_path in a.iter_mut() {
-				for dir_entry in exception_from!(fs::read_dir(folder_path), "While getting folders from directory")? {
-					let dir_entry = exception_from!(dir_entry)?.path();
+				for dir_entry in fs::read_dir(folder_path).map_ex(ex!("While getting folders from directory"))? {
+					let dir_entry = dir_entry.map_ex(ex!())?.path();
 					if dir_entry.is_dir() {
 						b.push(dir_entry);
 						continue;
@@ -102,8 +102,8 @@ impl WorldFolderAccess {
 					if dir_entry.is_file() && dir_entry.to_string_lossy().ends_with(".succ") {
 						//Process
 						log_info!("Trying to parse: ", &dir_entry.to_string_lossy());
-						let bytes = exception_wrap!(Self::load_file(&dir_entry), "While loading SUCC file bytes from disk")?;
-						exception_wrap!(succ_parser::debug_succ_file(&bytes), "While trying to parse random SUCC file")?;
+						let bytes = Self::load_file(&dir_entry).wrap(ex!("While loading SUCC file bytes from disk"))?;
+						succ_parser::debug_succ_file(&bytes).wrap(ex!("While trying to parse random SUCC file"))?;
 					}
 				}
 			}

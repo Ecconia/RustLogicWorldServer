@@ -25,29 +25,29 @@ impl PlayerPosition {
 			{
 				expect_array!(iterator, "PlayerPosition", "BaseWorldRotation:Quaternion", 4);
 				//XYZA
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's BaseWorldRotation/X")?;
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's BaseWorldRotation/Y")?;
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's BaseWorldRotation/Z")?;
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's BaseWorldRotation/A")?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's BaseWorldRotation/X"))?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's BaseWorldRotation/Y"))?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's BaseWorldRotation/Z"))?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's BaseWorldRotation/A"))?;
 			}
 			//Vector : FeetPosition
 			{
 				expect_array!(iterator, "PlayerPosition", "FeetPosition:Vector", 3);
 				//XYZ
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's FeetPosition/X")?;
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's FeetPosition/Y")?;
-				exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's FeetPosition/Z")?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's FeetPosition/X"))?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's FeetPosition/Y"))?;
+				mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's FeetPosition/Z"))?;
 			}
 			//float : HeadHorizontalRotation
-			exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's HeadHorizontalRotation")?;
+			mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's HeadHorizontalRotation"))?;
 			//float : HeadVerticalRotation
-			exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's HeadVerticalRotation")?;
+			mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's HeadVerticalRotation"))?;
 			//float : Scale
-			exception_wrap!(mp_reader::read_f32(iterator), "While reading PlayerPosition packet's Scale")?;
+			mp_reader::read_f32(iterator).wrap(ex!("While reading PlayerPosition packet's Scale"))?;
 			//bool : Flying
-			exception_wrap!(mp_reader::read_bool(iterator), "While reading PlayerPosition packet's Flying")?;
+			mp_reader::read_bool(iterator).wrap(ex!("While reading PlayerPosition packet's Flying"))?;
 			//bool : Teleport To This Position
-			exception_wrap!(mp_reader::read_bool(iterator), "While reading PlayerPosition packet's TeleportToThisPosition")?;
+			mp_reader::read_bool(iterator).wrap(ex!("While reading PlayerPosition packet's TeleportToThisPosition"))?;
 		}
 		
 		expect_end_of_packet!(iterator, "PlayerPosition");

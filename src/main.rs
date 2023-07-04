@@ -41,11 +41,11 @@ fn main() {
 	log_info!("Starting network socket!");
 	let mut rand = rand::thread_rng();
 	let random_unique_id = rand.gen();
-	let mut server = unwrap_or_print_return!(exception_wrap!(ServerInstance::start(
+	let mut server = unwrap_or_print_return!(ServerInstance::start(
 		String::from("Logic World"),
 		random_unique_id,
 		String::from("[::]:43531"),
-	), "While starting network server"));
+	).wrap(ex!("While starting network server")));
 	
 	let mut packets_to_process = Vec::new();
 	let min_tick_duration = Duration::from_millis(16);
@@ -84,10 +84,10 @@ fn main() {
 
 fn get_packet_content_iterator(data: &Vec<u8>) -> EhResult<(u32, CustomIterator)> {
 	let mut iterator = CustomIterator::borrow(&data[..]);
-	let packet_id = exception_wrap!(mp_reader::read_u32(&mut iterator), "While reading user packet id")?;
+	let packet_id = mp_reader::read_u32(&mut iterator).wrap(ex!("While reading user packet id"))?;
 	
 	let decompress_start = Instant::now();
-	let decompress_result = exception_wrap!(try_decompress(&mut iterator), "asdf")?;
+	let decompress_result = try_decompress(&mut iterator).wrap(ex!("asdf"))?;
 	if let Some(decompressed_bytes) = decompress_result {
 		let duration_ms = (Instant::now() - decompress_start).as_millis();
 		log_debug!("Decompressed packet in ", duration_ms, "ms");
@@ -105,14 +105,14 @@ fn handle_user_packet(
 	extra_data: &mut ExtraDataManager,
 ) {
 	let (packet_id, mut iterator) = unwrap_or_print_return!(
-		exception_wrap!(get_packet_content_iterator(&data), "While reading LW header of packet")
+		get_packet_content_iterator(&data).wrap(ex!("While reading LW header of packet"))
 	);
 	let it = &mut iterator;
 	
 	match PacketIDs::from_u32(packet_id) {
 		Some(PacketIDs::ConnectionEstablished) => {
 			log_info!("[UserPacket] Type: ConnectionEstablishedPacket");
-			unwrap_or_print_return!(exception_wrap!(ConnectionEstablished::parse(iterator), "While parsing ConnectionEstablished packet"));
+			unwrap_or_print_return!(ConnectionEstablished::parse(iterator).wrap(ex!("While parsing ConnectionEstablished packet")));
 			
 			//Respond with world packet:
 			
@@ -126,16 +126,16 @@ fn handle_user_packet(
 		}
 		Some(PacketIDs::PlayerPosition) => {
 			log_info!("[UserPacket] Type: PlayerPositionPacket");
-			unwrap_or_print_return!(exception_wrap!(PlayerPosition::parse(iterator), "While parsing PlayerPosition packet"));
+			unwrap_or_print_return!(PlayerPosition::parse(iterator).wrap(ex!("While parsing PlayerPosition packet")));
 		}
 		Some(PacketIDs::ExtraDataRequest) => {
 			log_info!("[UserPacket] Type: ExtraDataRequestPacket");
-			let request = unwrap_or_print_return!(exception_wrap!(ExtraDataRequest::parse(iterator), "While parsing ExtraDataRequest packet"));
+			let request = unwrap_or_print_return!(ExtraDataRequest::parse(iterator).wrap(ex!("While parsing ExtraDataRequest packet")));
 			extra_data.handle_request(request, server, address);
 		}
 		Some(PacketIDs::ExtraDataChange) => {
 			log_info!("[UserPacket] Type: ExtraDataChangePacket");
-			let request = unwrap_or_print_return!(exception_wrap!(ExtraDataChange::parse(iterator), "While parsing ExtraDataChange packet"));
+			let request = unwrap_or_print_return!(ExtraDataChange::parse(iterator).wrap(ex!("While parsing ExtraDataChange packet")));
 			extra_data.handle_change(request, server, address);
 		}
 		_ => {
@@ -151,8 +151,8 @@ fn handle_discovery(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::borrow(&data[..]);
-	unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::validate_packet_id(&mut iterator), "While validating DiscoveryRequest packet ID"));
-	let request = unwrap_or_print_return!(exception_wrap!(DiscoveryRequest::parse(iterator), "While parsing DiscoveryRequest packet"));
+	unwrap_or_print_return!(DiscoveryRequest::validate_packet_id(&mut iterator).wrap(ex!("While validating DiscoveryRequest packet ID")));
+	let request = unwrap_or_print_return!(DiscoveryRequest::parse(iterator).wrap(ex!("While parsing DiscoveryRequest packet")));
 	
 	//Answer:
 	
@@ -174,8 +174,8 @@ fn handle_connect(
 	data: Vec<u8>,
 ) {
 	let mut iterator = CustomIterator::borrow(&data[..]);
-	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::validate_packet_id(&mut iterator), "While validating ConnectionApproval packet ID"));
-	unwrap_or_print_return!(exception_wrap!(ConnectionApproval::parse(iterator), "While parsing ConnectionApproval packet"));
+	unwrap_or_print_return!(ConnectionApproval::validate_packet_id(&mut iterator).wrap(ex!("While validating ConnectionApproval packet ID")));
+	unwrap_or_print_return!(ConnectionApproval::parse(iterator).wrap(ex!("While parsing ConnectionApproval packet")));
 	
 	//Send answer:
 	

@@ -5,7 +5,6 @@ use crate::files::world_data::world_structs::Color24;
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_tools::*;
 use crate::util::custom_iterator::CustomIterator;
-use crate::util::error_handling::ExceptionDetails;
 
 pub const KEY: &str = "MHG.WorldTypeData";
 pub const TYPE: &str = "LogicWorld.SharedCode.Data.GridlandsWorldData"; //Ehm yes
@@ -34,21 +33,21 @@ fn parse_data(bytes: &[u8]) -> EhResult<WorldTypeDataGridlands> {
 	expect_array!(iterator, "WorldTypeDataGridlands ExtraData" , "main content", 4);
 	expect_array!(iterator, "WorldTypeDataGridlands ExtraData" , "color a", 3);
 	let color_a = Color24 {
-		r: exception_wrap!(mp_reader::read_u8(iterator), "While reading color R in extra data")?,
-		g: exception_wrap!(mp_reader::read_u8(iterator), "While reading color G in extra data")?,
-		b: exception_wrap!(mp_reader::read_u8(iterator), "While reading color B in extra data")?,
+		r: mp_reader::read_u8(iterator).wrap(ex!("While reading color R in extra data"))?,
+		g: mp_reader::read_u8(iterator).wrap(ex!("While reading color G in extra data"))?,
+		b: mp_reader::read_u8(iterator).wrap(ex!("While reading color B in extra data"))?,
 	};
 	expect_array!(iterator, "WorldTypeDataGridlands ExtraData" , "color b", 3);
 	let color_b = Color24 {
-		r: exception_wrap!(mp_reader::read_u8(iterator), "While reading color R in extra data")?,
-		g: exception_wrap!(mp_reader::read_u8(iterator), "While reading color G in extra data")?,
-		b: exception_wrap!(mp_reader::read_u8(iterator), "While reading color B in extra data")?,
+		r: mp_reader::read_u8(iterator).wrap(ex!("While reading color R in extra data"))?,
+		g: mp_reader::read_u8(iterator).wrap(ex!("While reading color G in extra data"))?,
+		b: mp_reader::read_u8(iterator).wrap(ex!("While reading color B in extra data"))?,
 	};
-	let side_a = exception_wrap!(mp_reader::read_i32(iterator), "While reading side A in extra data")?;
+	let side_a = mp_reader::read_i32(iterator).wrap(ex!("While reading side A in extra data"))?;
 	if side_a < 1 {
 		exception!("Gridworld side A is smaller than 1, illegal: ", side_a)?
 	}
-	let side_b = exception_wrap!(mp_reader::read_i32(iterator), "While reading side B in extra data")?;
+	let side_b = mp_reader::read_i32(iterator).wrap(ex!("While reading side B in extra data"))?;
 	if side_b < 1 {
 		exception!("Gridworld side B is smaller than 1, illegal: ", side_b)?
 	}
@@ -62,7 +61,7 @@ fn parse_data(bytes: &[u8]) -> EhResult<WorldTypeDataGridlands> {
 
 impl GenericExtraData for WorldTypeDataGridlands {
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool {
-		unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid default extra data:");
 			error.print(); //TODO: Format as warning.
 			false
@@ -72,7 +71,7 @@ impl GenericExtraData for WorldTypeDataGridlands {
 	}
 	
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool {
-		let new_data = unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let new_data = unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid new extra data:");
 			error.print(); //TODO: Format as warning.
 			false

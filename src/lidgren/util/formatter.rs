@@ -57,7 +57,7 @@ pub fn write_int_32(buffer: &mut Vec<u8>, value: u32) {
 }
 
 pub fn read_float(iterator: &mut CustomIterator) -> EhResult<f32> {
-	Ok(exception_wrap!(read_int_32(iterator), "While converting int to float")? as f32)
+	Ok(read_int_32(iterator).wrap(ex!("While converting int to float"))? as f32)
 }
 
 pub fn write_float(buffer: &mut Vec<u8>, value: f32) {
@@ -68,7 +68,7 @@ pub fn read_vint_32(iterator: &mut CustomIterator) -> EhResult<u32> {
 	let mut one = 0_u32;
 	let mut two = 0_u32;
 	loop {
-		let three = exception_wrap!(iterator.next(), "While reading variable int")? as u32;
+		let three = iterator.next().wrap(ex!("While reading variable int"))? as u32;
 		one |= (three & 0x7f) << two;
 		two += 7;
 		if (three & 0x80) == 0 {
@@ -98,12 +98,12 @@ pub fn vint_length(value: u32) -> u32 {
 }
 
 pub fn read_string(iterator: &mut CustomIterator) -> EhResult<String> {
-	let length = exception_wrap!(read_vint_32(iterator), "While reading length of string")? as usize;
+	let length = read_vint_32(iterator).wrap(ex!("While reading length of string"))? as usize;
 	if length == 0 {
 		return Ok(String::from(""));
 	}
-	let bytes = exception_wrap!(iterator.read_bytes(length), "While reading bytes of string")?;
-	exception_from!(String::from_utf8(bytes), "While converting string from bytes")
+	let bytes = iterator.read_bytes(length).wrap(ex!("While reading bytes of string"))?;
+	String::from_utf8(bytes).map_ex(ex!("While converting string from bytes"))
 }
 
 pub fn write_string(buffer: &mut Vec<u8>, value: &str) {

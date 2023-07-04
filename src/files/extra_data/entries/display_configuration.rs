@@ -5,7 +5,6 @@ use crate::files::world_data::world_structs::Color24;
 use crate::network::message_pack::reader as mp_reader;
 use crate::network::packets::packet_tools::*;
 use crate::util::custom_iterator::CustomIterator;
-use crate::util::error_handling::ExceptionDetails;
 
 pub const TYPE: &str = "JimmysUnityUtilities.Color24[]";
 
@@ -33,13 +32,13 @@ pub struct DisplayConfigurationData {
 
 fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationData> {
 	let iterator = &mut CustomIterator::borrow(bytes);
-	let color_count = exception_wrap!(mp_reader::read_array(iterator), "While reading color count in display conf extra data")?;
+	let color_count = mp_reader::read_array(iterator).wrap(ex!("While reading color count in display conf extra data"))?;
 	let mut colors = Vec::with_capacity(color_count as usize);
 	for _ in 0..color_count {
 		expect_array!(iterator, "DisplayConfiguration ExtraData" , "color entry", 3);
-		let c_red = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
-		let c_green = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
-		let c_blue = exception_wrap!(mp_reader::read_u8(iterator), "While reading color channel in display conf extra data")?;
+		let c_red = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
+		let c_green = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
+		let c_blue = mp_reader::read_u8(iterator).wrap(ex!("While reading color channel in display conf extra data"))?;
 		colors.push(Color24 {
 			r: c_red,
 			g: c_green,
@@ -56,7 +55,7 @@ fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationData> {
 
 impl GenericExtraData for DisplayConfiguration {
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool {
-		let suggested_default = unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let suggested_default = unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid default extra data:");
 			error.print(); //TODO: Format as warning.
 			false
@@ -79,7 +78,7 @@ impl GenericExtraData for DisplayConfiguration {
 	}
 	
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool {
-		let new_data = unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let new_data = unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid new extra data:");
 			error.print(); //TODO: Format as warning.
 			false

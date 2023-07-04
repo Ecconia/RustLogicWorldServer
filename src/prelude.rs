@@ -7,11 +7,16 @@ pub use crate::util::log_formatter::{
 };
 //Exception handling needed everywhere:
 pub use crate::util::error_handling::{
-	unwrap_some_or_return,
-	unwrap_ok_or_return,
+	//Unwrap or return feature:
+	unwrap_or_return,
+	UnwrapHelperOption,
+	UnwrapHelperResult,
+	//Exception framework feature:
 	EhResult,
+	ExceptionWrappingResult,
+	ExceptionWrappingOption,
+	ExceptionHandling,
+	ex,
 	exception,
-	exception_from,
-	exception_wrap,
 	unwrap_or_print_return,
 };

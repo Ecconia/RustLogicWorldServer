@@ -1,84 +1,144 @@
-//Old error handling system with custom unwrappers:
+// ### Unwrap & Return feature:
 
-#[macro_export]
-macro_rules! _unwrap_some_or_return {
-	($val:expr) => {
-		match $val {
-			Some(x) => x,
-			None => return,
-		}
-	};
-	($val:expr, $other:expr) => {
-		match $val {
-			Some(x) => x,
-			None => return $other,
-		}
-	};
-}
-pub use _unwrap_some_or_return as unwrap_some_or_return;
-
-#[macro_export]
-macro_rules! _unwrap_ok_or_return {
-	($val:expr) => {
-		match $val {
-			Ok(x) => x,
-			Err(err) => return,
-		}
-	};
-	($val:expr, $other:expr) => {
-		match $val {
-			Ok(x) => x,
-			Err(error) => {
-				return $other(error)
-			}
-		}
-	};
-}
-pub use _unwrap_ok_or_return as unwrap_ok_or_return;
-
-// ### New system: #############
-
-pub type EhResult<T> = Result<T, ExceptionDetails>;
-
-#[derive(Debug)]
-pub struct ExceptionDetails {
-	pub messages: Vec<String>,
+pub trait UnwrapHelperOption<A, B> {
+	fn unwrap_helper(self) -> Result<A, ()>;
+	fn unwrap_helper_arg(self, argument: B) -> Result<A, B>;
 }
 
-impl ExceptionDetails {
-	//TODO: Format messages when printing it and allowing different color schemes while doing so (-> print as warn or error)
-	pub fn print(&self) {
-		println!("{}", self.messages.join("\n"));
+impl<A, B> UnwrapHelperOption<A, B> for Option<A> {
+	fn unwrap_helper(self) -> Result<A, ()> {
+		match self {
+			Some(x) => Ok(x),
+			None => Err(()),
+		}
+	}
+	fn unwrap_helper_arg(self, argument: B) -> Result<A, B> {
+		match self {
+			Some(x) => Ok(x),
+			None => Err(argument),
+		}
+	}
+}
+
+pub trait UnwrapHelperResult<A, B, C> {
+	fn unwrap_helper(self) -> Result<A, ()>;
+	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C>;
+}
+
+impl<A, B, C> UnwrapHelperResult<A, B, C> for Result<A, B> {
+	fn unwrap_helper(self) -> Result<A, ()> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(_) => Err(()),
+		}
+	}
+	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(err) => Err(closure(err)),
+		}
 	}
 }
 
 #[macro_export]
-macro_rules! _unwrap_or_print_return {
+macro_rules! _unwrap_or_return {
 	($val:expr) => {
-		match $val {
+		match $val.unwrap_helper() {
 			Ok(x) => x,
-			Err(message) => {
-				$crate::util::error_handling::ExceptionDetails::print(&message);
-				return;
-			}
+			Err(val) => return val,
+		}
+	};
+	($val:expr, $other:expr) => {
+		match $val.unwrap_helper_arg($other) {
+			Ok(x) => x,
+			Err(val) => return val,
 		}
 	};
 }
-pub use _unwrap_or_print_return as unwrap_or_print_return;
+pub use _unwrap_or_return as unwrap_or_return;
+
+// ### Exception framework:
+
+pub type EhResult<T> = Result<T, Stacktrace>;
+
+type MetaInformation = (&'static str, u32, u32); //File-Name, Line-Number, Colon-Number
+
+#[macro_export]
+macro_rules! _meta {
+	() => {
+		(file!(), line!(), column!())
+	};
+}
+pub use _meta as meta;
+
+#[derive(Debug)]
+pub struct StackFrame {
+	pub file_location: &'static str,
+	pub file_line: u32,
+	pub file_column: u32,
+	pub message: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct Stacktrace {
+	pub message: Option<String>,
+	pub frames: Vec<StackFrame>,
+}
+
+impl Stacktrace {
+	//TODO: Format messages when printing it and allowing different color schemes while doing so (-> print as warn or error)
+	pub fn print(&self) {
+		let mut frames = &self.frames[..];
+		let mut message = match &self.message {
+			Some(message) => {
+				format!(concat!(
+					crate::util::log_formatter::color_error_normal!(), "Error: {}",
+					crate::util::ansi_constants::ansi_reset!(),
+				), message)
+			}
+			None => {
+				let frame = &frames[0];
+				frames = &frames[1..];
+				format!(
+					concat!(
+						crate::util::log_formatter::color_meta!(), "Error: ",
+						crate::util::log_formatter::color_error_normal!(), "{}",
+						crate::util::log_formatter::color_meta!(), " @ {} | {}:{}",
+						crate::util::ansi_constants::ansi_reset!(),
+					),
+					if frame.message.is_some() { frame.message.as_ref().unwrap().to_owned() } else { "---".to_owned() },
+					frame.file_location, frame.file_line, frame.file_column
+				)
+			}
+		};
+		for frame in frames {
+			message.push_str(&format!(
+				concat!(
+					"\n",
+					crate::util::log_formatter::color_meta!(), "-> ",
+					crate::util::log_formatter::color_error_normal!(), "{}",
+					crate::util::log_formatter::color_meta!(), " @ {} | {}:{}",
+					crate::util::ansi_constants::ansi_reset!(),
+				),
+				if frame.message.is_some() { frame.message.as_ref().unwrap().to_owned() } else { "---".to_owned() },
+				frame.file_location, frame.file_line, frame.file_column
+			));
+		}
+		println!("{}", message);
+	}
+}
 
 #[macro_export]
 macro_rules! _exception {
 	( $while:expr ) => {
-		Err({
-			let mut messages = Vec::new();
-			messages.push(format!(concat!(
-				$crate::util::log_formatter::color_error_normal!(),
-				"Error: {}",
-				$crate::util::ansi_constants::ansi_reset!(),
-			), $while));
-			$crate::util::error_handling::ExceptionDetails {
-				messages
-			}
+		Err($crate::util::error_handling::Stacktrace {
+			message: None,
+			frames: vec![$crate::util::error_handling::StackFrame {
+				file_location: file!(),
+				file_line: line!(),
+				file_column: column!(),
+				message: Some($while.to_owned()),
+			}],
 		})
 	};
 	( $( $while:expr ),+ ) => {
@@ -89,72 +149,114 @@ macro_rules! _exception {
 }
 pub use _exception as exception;
 
-#[macro_export]
-macro_rules! _exception_from {
-	( $result:expr ) => {
-		//No explanation of when this exception was thrown, just wrap it...
-		// Not recommended, as it won't add any position details.
-		match $result {
-			Ok(value) => Ok(value),
-			Err(exception) => $crate::util::error_handling::exception!(format!("{:?}", exception))
-		}
-	};
-	( $result:expr, $( $while:expr ),+ ) => {
-		//Exception while... basically syntax sugar for expansion...
-		$crate::util::error_handling::exception_wrap!(
-			$crate::util::error_handling::exception_from!($result),
-			$( $while ),+
-		)
-	};
-}
-pub use _exception_from as exception_from;
-
 pub trait ResultExceptionDetailsExt<T> {
-	fn while_doing(self, while_doing_what: &str) -> EhResult<T>;
-	fn while_doing_detailed(self, file_location: &str, file_line: u32, file_column: u32, while_doing_what: String) -> EhResult<T>;
+	fn while_doing(self, meta: MetaInformation, message: Option<String>) -> EhResult<T>;
 }
 
 impl<T> ResultExceptionDetailsExt<T> for EhResult<T> {
-	fn while_doing(self, while_doing_what: &str) -> EhResult<T> {
+	fn while_doing(self, meta: MetaInformation, message: Option<String>) -> EhResult<T> {
 		match self {
 			Ok(val) => Ok(val),
 			Err(mut err) => {
-				err.messages.push(format!(concat!(
-					crate::util::log_formatter::color_meta!(),
-					" -> ",
-					crate::util::log_formatter::color_error_normal!(),
-					"{}",
-					crate::util::ansi_constants::ansi_reset!(),
-				), while_doing_what));
-				err.messages.push(while_doing_what.to_string());
-				Err(err)
-			}
-		}
-	}
-	
-	fn while_doing_detailed(self, file_location: &str, file_line: u32, file_column: u32, while_doing_what: String) -> EhResult<T> {
-		match self {
-			Ok(val) => Ok(val),
-			Err(mut err) => {
-				err.messages.push(format!(concat!(
-					crate::util::log_formatter::color_meta!(),
-					" -> {}",
-					crate::util::log_formatter::color_meta!(),
-					" @ {} | {}:{}",
-					crate::util::ansi_constants::ansi_reset!(),
-				), while_doing_what, file_location, file_line, file_column));
+				err.frames.push(StackFrame {
+					file_location: meta.0,
+					file_line: meta.1,
+					file_column: meta.2,
+					message,
+				});
 				Err(err)
 			}
 		}
 	}
 }
 
+// ### Newer system: #############
+
+//TODO: Move evaluation of errors to the printing stage, by storing closures instead.
+//TODO: Move formatting to runtime, or wrap with custom symbols to replace them later on.
+
+//Creation:
+
 #[macro_export]
-macro_rules! _exception_wrap {
-	( $result:expr, $( $while:expr ),* ) => {
-		$crate::util::error_handling::ResultExceptionDetailsExt::while_doing_detailed(
-			$result, file!(), line!(), column!(), $crate::util::log_formatter::fmt_error!($( $while ),*)
-		)
+macro_rules! _ex {
+	() => {
+		($crate::util::error_handling::meta!(), None)
+	};
+	( $($reason:expr),* ) => {
+		($crate::util::error_handling::meta!(), Some($crate::util::log_formatter::fmt_error!( $( $reason ),* )))
 	};
 }
-pub use _exception_wrap as exception_wrap;
+pub use _ex as ex;
+
+pub trait ExceptionWrappingResult<T, E: std::fmt::Debug> {
+	fn map_ex(self, c: (MetaInformation, Option<String>)) -> EhResult<T>;
+}
+
+impl<T, E: std::fmt::Debug> ExceptionWrappingResult<T, E> for Result<T, E> {
+	fn map_ex(self, context: (MetaInformation, Option<String>)) -> EhResult<T> {
+		self.map_err(|e| {
+			let meta = context.0;
+			let message = context.1;
+			let error = format!("{:?}", e);
+			Stacktrace {
+				message: Some(error),
+				frames: vec![StackFrame {
+					file_location: meta.0,
+					file_line: meta.1,
+					file_column: meta.2,
+					message,
+				}],
+			}
+		})
+	}
+}
+
+pub trait ExceptionWrappingOption<T> {
+	fn map_ex(self, c: (MetaInformation, Option<String>)) -> EhResult<T>;
+}
+
+impl<T> ExceptionWrappingOption<T> for Option<T> {
+	fn map_ex(self, context: (MetaInformation, Option<String>)) -> EhResult<T> {
+		self.ok_or_else(|| {
+			let meta = context.0;
+			let message = context.1;
+			Stacktrace {
+				message: None,
+				frames: vec![StackFrame {
+					file_location: meta.0,
+					file_line: meta.1,
+					file_column: meta.2,
+					message,
+				}],
+			}
+		})
+	}
+}
+
+//Wrapping:
+
+pub trait ExceptionHandling<T> {
+	fn wrap(self, c: (MetaInformation, Option<String>)) -> Self;
+}
+
+impl<T> ExceptionHandling<T> for EhResult<T> {
+	fn wrap(self, context: (MetaInformation, Option<String>)) -> Self {
+		self.while_doing(context.0, context.1)
+	}
+}
+
+// ### Unwrap & Print:
+
+#[macro_export]
+macro_rules! _unwrap_or_print_return {
+	($val:expr) => {
+		match $val {
+			Ok(x) => x,
+			Err(message) => {
+				$crate::util::error_handling::Stacktrace::print(&message);
+				return;
+			}
+		}
+	};
+}
+pub use _unwrap_or_print_return as unwrap_or_print_return;

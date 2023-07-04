@@ -1,6 +1,6 @@
 macro_rules! _wrap {
 	($value:expr, $name:expr, $other:expr) => {
-		$crate::util::error_handling::exception_wrap!($value, concat!("While reading ", $name, " packet's ", $other))?
+		$value.wrap($crate::util::error_handling::ex!(concat!("While reading ", $name, " packet's ", $other)))?
 	}
 }
 pub(crate) use _wrap as wrap;
@@ -26,10 +26,8 @@ pub(crate) use _expect_end_of_packet as expect_end_of_packet;
 
 macro_rules! _expect_packet_id {
 	($iterator:expr, $packet_name:expr, $packet_type:expr) => {
-		let packet_id = $crate::util::error_handling::exception_wrap!(
-			$crate::network::message_pack::reader::read_u32($iterator),
-			concat!("While reading ", $packet_name, " packet id")
-		)?;
+		let packet_id = $crate::network::message_pack::reader::read_u32($iterator)
+			.wrap($crate::util::error_handling::ex!(concat!("While reading ", $packet_name, " packet id")))?;
 		if packet_id != $packet_type.id() {
 			return $crate::util::error_handling::exception!(
 				concat!("Wrong packet id for ", $packet_name, " packet: "),	packet_id

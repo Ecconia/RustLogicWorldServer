@@ -164,10 +164,10 @@ impl ConnectedClient {
 			log_warn!("Not enough bytes to read fragment header: ", iterator.remaining(), "/", 122);
 			return;
 		}
-		let fragment_group_id = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_vint_32(&mut iterator), "While reading 'fragment_group_id'"));
-		let fragment_bits = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_vint_32(&mut iterator), "While reading 'fragment_bits'"));
-		let fragment_chunk_size = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_vint_32(&mut iterator), "While reading 'fragment_chunk_size'"));
-		let fragment_index = unwrap_or_print_return!(exception_wrap!(lg_formatter::read_vint_32(&mut iterator), "While reading 'fragment_index'"));
+		let fragment_group_id = unwrap_or_print_return!(lg_formatter::read_vint_32(&mut iterator).wrap(ex!("While reading 'fragment_group_id'")));
+		let fragment_bits = unwrap_or_print_return!(lg_formatter::read_vint_32(&mut iterator).wrap(ex!("While reading 'fragment_bits'")));
+		let fragment_chunk_size = unwrap_or_print_return!(lg_formatter::read_vint_32(&mut iterator).wrap(ex!("While reading 'fragment_chunk_size'")));
+		let fragment_index = unwrap_or_print_return!(lg_formatter::read_vint_32(&mut iterator).wrap(ex!("While reading 'fragment_index'")));
 		
 		//Copy code from original:
 		let _total_bytes = (fragment_bits + 7) / 8;
