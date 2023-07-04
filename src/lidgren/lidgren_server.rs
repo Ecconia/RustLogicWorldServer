@@ -202,7 +202,7 @@ impl ServerInstance {
 							return;
 						}
 						let connected_client = self.user_map.get_mut(&remote_address);
-						let connected_client = unwrap_some_or_return!(connected_client, {
+						let connected_client = unwrap_or_return!(connected_client, {
 							log_warn!("Client sent user-message, while not being connected!");
 						});
 						connected_client.handle_new_message(
@@ -322,7 +322,7 @@ impl ServerInstance {
 		user_map: &mut HashMap<SocketAddr, ConnectedClient>
 	) {
 		//Get user in question:
-		let connected_client = unwrap_some_or_return!(user_map.get_mut(&remote_address), {
+		let connected_client = unwrap_or_return!(user_map.get_mut(&remote_address), {
 			log_warn!("Warning: Unconnected user sent acknowledge packet - ignoring!");
 		});
 		//Parse acknowledge data and forward to channel handler:
@@ -333,7 +333,7 @@ impl ServerInstance {
 		while iterator.has_more() {
 			//We know, that there will be 3 more bytes available now, proceed with unchecked operations:
 			let raw_id = iterator.next_unchecked();
-			let message_type = unwrap_some_or_return!(MessageType::from_id(raw_id), {
+			let message_type = unwrap_or_return!(MessageType::from_id(raw_id), {
 				log_warn!("Warning: Connected user sent invalid acknowledge packet: Invalid message type id ", raw_id);
 			});
 			let sequence_number = iterator.next_unchecked() as u16 | ((iterator.next_unchecked() as u16) << 8);

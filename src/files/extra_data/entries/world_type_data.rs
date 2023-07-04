@@ -62,7 +62,7 @@ fn parse_data(bytes: &[u8]) -> EhResult<WorldTypeDataGridlands> {
 
 impl GenericExtraData for WorldTypeDataGridlands {
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool {
-		unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		unwrap_or_return!(parse_data(bytes), |error: ExceptionDetails| {
 			log_warn!("Client sent invalid default extra data:");
 			error.print(); //TODO: Format as warning.
 			false
@@ -72,7 +72,7 @@ impl GenericExtraData for WorldTypeDataGridlands {
 	}
 	
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool {
-		let new_data = unwrap_ok_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let new_data = unwrap_or_return!(parse_data(bytes), |error: ExceptionDetails| {
 			log_warn!("Client sent invalid new extra data:");
 			error.print(); //TODO: Format as warning.
 			false

@@ -19,7 +19,7 @@ pub struct ExtraDataManager {
 impl ExtraDataManager {
 	pub fn handle_request(&mut self, request_packet: ExtraDataRequest, server: &mut ServerInstance, address: SocketAddr) {
 		pretty_print_data(&mut CustomIterator::borrow(&request_packet.default));
-		let extra_data = unwrap_some_or_return!(self.resolve_key(&request_packet.key[..]), {
+		let extra_data = unwrap_or_return!(self.resolve_key(&request_packet.key[..]), {
 			log_warn!("Client tried to query unknown ExtraData: '", request_packet.key, "'");
 			log_debug!(" Type is btw: ", request_packet.data_type);
 		});
@@ -36,7 +36,7 @@ impl ExtraDataManager {
 	
 	pub fn handle_change(&mut self, change_packet: ExtraDataChange, server: &mut ServerInstance, address: SocketAddr) {
 		pretty_print_data(&mut CustomIterator::borrow(&change_packet.data_bytes));
-		let extra_data = unwrap_some_or_return!(self.resolve_key(&change_packet.key[..]), {
+		let extra_data = unwrap_or_return!(self.resolve_key(&change_packet.key[..]), {
 			log_warn!("Client tried to update unknown ExtraData: '", change_packet.key, "'");
 			log_debug!(" Type is btw: ", change_packet.data_type);
 		});
@@ -97,7 +97,7 @@ impl ExtraDataManager {
 				if key.starts_with(PREFIX) {
 					let mut p_key = &key[PREFIX_LENGTH..];
 					//At this point there will be a display configuration. Validate/Parse key:
-					let position = unwrap_some_or_return!(p_key.chars().position(|l| { l > '9' || l < '0' }), None);
+					let position = p_key.chars().position(|l| { l > '9' || l < '0' })?;
 					if position == 0 {
 						return None; //We are on a letter, but should be on a digit -> wrong format.
 					}

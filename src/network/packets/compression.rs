@@ -7,14 +7,11 @@ pub fn try_decompress(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8>>
 	let iterator_position = iterator.pointer_save();
 	let res = try_decompress_inner(iterator).wrap(ex!("While trying to decompress"))?;
 	iterator.pointer_restore(iterator_position);
-	let ret = unwrap_some_or_return!(res, {
-		Ok(None)
-	});
-	Ok(Some(ret))
+	Ok(res)
 }
 
 fn try_decompress_inner(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8>>> {
-	let array_size = unwrap_some_or_return!(mp_reader::try_array(iterator).wrap(ex!("While probing for compression array"))?, {
+	let array_size = unwrap_or_return!(mp_reader::try_array(iterator).wrap(ex!("While probing for compression array"))?, {
 		Ok(None)
 	});
 	//There have to be at least two elements, one header (ext) and one chunk:
@@ -22,7 +19,7 @@ fn try_decompress_inner(iterator: &mut CustomIterator) -> EhResult<Option<Vec<u8
 		return Ok(None);
 	}
 	//Subtract the header of the array size to get the chunk count:
-	let whatever_ext_content = unwrap_some_or_return!(mp_reader::try_ext(iterator).wrap(ex!("While probing for compression extension"))?, {
+	let whatever_ext_content = unwrap_or_return!(mp_reader::try_ext(iterator).wrap(ex!("While probing for compression extension"))?, {
 		Ok(None)
 	});
 	if whatever_ext_content.0 != 98 {

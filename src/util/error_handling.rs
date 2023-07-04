@@ -1,40 +1,61 @@
 //Old error handling system with custom unwrappers:
 
-#[macro_export]
-macro_rules! _unwrap_some_or_return {
-	($val:expr) => {
-		match $val {
-			Some(x) => x,
-			None => return,
-		}
-	};
-	($val:expr, $other:expr) => {
-		match $val {
-			Some(x) => x,
-			None => return $other,
-		}
-	};
+pub trait UnwrapHelperOption<A, B> {
+	fn unwrap_helper(self) -> Result<A, ()>;
+	fn unwrap_helper_arg(self, argument: B) -> Result<A, B>;
 }
-pub use _unwrap_some_or_return as unwrap_some_or_return;
+
+impl<A, B> UnwrapHelperOption<A, B> for Option<A> {
+	fn unwrap_helper(self) -> Result<A, ()> {
+		match self {
+			Some(x) => Ok(x),
+			None => Err(()),
+		}
+	}
+	fn unwrap_helper_arg(self, argument: B) -> Result<A, B> {
+		match self {
+			Some(x) => Ok(x),
+			None => Err(argument),
+		}
+	}
+}
+
+pub trait UnwrapHelperResult<A, B, C> {
+	fn unwrap_helper(self) -> Result<A, ()>;
+	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C>;
+}
+
+impl<A, B, C> UnwrapHelperResult<A, B, C> for Result<A, B> {
+	fn unwrap_helper(self) -> Result<A, ()> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(_) => Err(()),
+		}
+	}
+	fn unwrap_helper_arg<F: Fn(B) -> C>(self, closure: F) -> Result<A, C> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(err) => Err(closure(err)),
+		}
+	}
+}
 
 #[macro_export]
-macro_rules! _unwrap_ok_or_return {
+macro_rules! _unwrap_or_return {
 	($val:expr) => {
-		match $val {
+		match $val.unwrap_helper() {
 			Ok(x) => x,
-			Err(err) => return,
+			Err(val) => return val,
 		}
 	};
 	($val:expr, $other:expr) => {
-		match $val {
+		match $val.unwrap_helper_arg($other) {
 			Ok(x) => x,
-			Err(error) => {
-				return $other(error)
-			}
+			Err(val) => return val,
 		}
 	};
 }
-pub use _unwrap_ok_or_return as unwrap_ok_or_return;
+pub use _unwrap_or_return as unwrap_or_return;
 
 // ### New system: #############
 
