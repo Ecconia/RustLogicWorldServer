@@ -3,7 +3,6 @@ use crate::prelude::*;
 use crate::files::extra_data::manager::GenericExtraData;
 use crate::network::message_pack::reader as mp_reader;
 use crate::util::custom_iterator::CustomIterator;
-use crate::util::error_handling::ExceptionDetails;
 
 pub const TYPE: &str = "System.Int32[]";
 
@@ -47,7 +46,7 @@ fn parse_data(bytes: &[u8]) -> EhResult<DisplayConfigurationsOrderData> {
 
 impl GenericExtraData for DisplayConfigurationsOrder {
 	fn validate_default_bytes(&self, bytes: &[u8]) -> bool {
-		let suggested_default = unwrap_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let suggested_default = unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid default extra data:");
 			error.print(); //TODO: Format as warning.
 			false
@@ -66,7 +65,7 @@ impl GenericExtraData for DisplayConfigurationsOrder {
 	}
 	
 	fn update_bytes_if_valid(&mut self, bytes: &[u8]) -> bool {
-		let new_data = unwrap_or_return!(parse_data(bytes), |error: ExceptionDetails| {
+		let new_data = unwrap_or_return!(parse_data(bytes), |error| {
 			log_warn!("Client sent invalid new extra data:");
 			error.print(); //TODO: Format as warning.
 			false
